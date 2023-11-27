@@ -1,150 +1,122 @@
-import { RequestQuote16 } from "carbon-icons-svelte";
-import fetch from "node-fetch";
-import Parser from "rss-parser";
-import { DBName, Processing } from "../const.js";
-import Storage from "../storage.js";
-import type { DiscordEmbed, Feed } from "../types.js";
+import Parser from 'rss-parser';
+import { get, set } from '../lib/redis/index.js';
+import { truncateString } from '../lib/helpers.js';
+import type { DiscordPost, Feed } from '../types.js';
 
 const parser = new Parser();
 
 export const handleFeeds = async () => {
-	if (await Storage.getString(Processing)) {
-		console.log("still processing, skipping");
+	// check if process is still running
+	if (await get('processing')) {
+		console.log('still processing, skipping');
 		return;
 	}
-	console.log("starting processing");
-	await Storage.setString(Processing, "1");
+	console.log(`[${new Date().toISOString()}] start processing\n`);
+	await set('processing', true);
+	const feeds = await get(process.env.DATABASE_NAME!); // get current feeds
+
 	try {
-		const feeds = await Storage.getItem<Array<Feed>>(DBName);
-		if (feeds == null) {
-			console.log("no feeds found");
+		// if no feeds found, skip interval
+		if (!feeds || !feeds.length) {
+			console.log('🔴 no feeds found\n');
 			return;
 		}
+		// loop through feeds
 		for (let i = 0; i < feeds.length; i++) {
-			console.log("feed:", feeds[i].name);
-			if (!feeds[i].lastItem?.isoDate) {
-				feeds[i].lastItem = { isoDate: new Date().toISOString() };
-				console.log("new feed, skipping");
+			console.log(`✅ ${feeds[i].name} [${feeds[i].updated}]\n`);
+			// skip if status is set to false
+			if (!feeds[i].status) {
+				console.log(`⏭️ skipping not active ${feeds[i].name}\n`);
 				continue;
 			}
-			const feed = await parser.parseURL(feeds[i].url);
+			// if updated is blank, set it to today and skip
+			if (!Number.isInteger(Date.parse(feeds[i].updated))) {
+				feeds[i].updated = new Date().toISOString();
+				console.log(`*️⃣ first check ${feeds[i].name}\n`);
+				continue;
+			}
+
+			const feed = await parser.parseURL(feeds[i].url); // fetch feed url
+			// filter posts
 			const items = feed.items
-				.filter((item) => item.isoDate)
+				.filter((item) => item.isoDate) // check for isoDate set
 				.filter(
 					(item) =>
-						!feeds[i].lastItem ||
-						new Date(item.isoDate!) > new Date(feeds[i].lastItem!.isoDate!)
+						new Date(item.isoDate!).getTime() < new Date().getTime() && // isoDate must be less than current date/time
+						new Date(item.isoDate!).getTime() > new Date(feeds[i].updated).getTime() // isoDate msut be greater than last updated
 				)
-				.sort(
-					(a, b) =>
-						new Date(b.isoDate!).getTime() - new Date(a.isoDate!).getTime()
-				);
-			console.log("previous item:", feeds[i].lastItem);
-			console.log("items:", items);
+				.sort((a, b) => new Date(a.isoDate!).getTime() - new Date(b.isoDate!).getTime()); // sort oldest post to newest
+			// check for posts
 			if (items.length > 0) {
-				feeds[i].lastItem = { isoDate: items[0].isoDate! };
-				let embeds: DiscordEmbed[] = [];
-				for (let item of items) {
-					console.log(item.link);
+				console.log(`🎉 ${items.length} new post(s) found!\n`);
+				let posts: DiscordPost[] = [];
+				// loop through posts
+				for (const item of items) {
 					try {
-						let embed: DiscordEmbed = {
-							title: truncateString(item.title ?? "", 250),
-							description: htmlToMarkdown(
-								truncateString(item.contentSnippet ?? "", 4000)
-							),
-							url: item.link,
-							timestamp: new Date(item.isoDate!).toISOString(),
-							color: getColor(item.content),
+						feeds[i].updated = item.isoDate; // set updated to feed isoDate
+						// set post meta
+						const post: DiscordPost = {
+							name: feeds[i].name,
+							title: truncateString(item.title ?? '', 250),
+							url: item.link!
 						};
-						if (feeds[i].imageUrl) {
-							embed.thumbnail = {
-								url: feeds[i].imageUrl,
-							};
-						}
-						embeds.push(embed);
-						if (embeds.length === 10) {
-							await executeHook(feeds[i], embeds);
-							embeds = [];
+						posts.push(post); // store meta in array
+						// send to webhook if it hits 10 posts
+						if (posts.length === 10) {
+							await executeHook(feeds[i], posts);
+							posts = [];
 						}
 					} catch (e) {
-						console.error("error posting webhook", e);
+						console.error('🔴 error posting 10 to webhook', e);
 					}
 				}
-				if (embeds.length > 0) {
+				// send to webhook
+				if (posts.length > 0) {
 					try {
-						await executeHook(feeds[i], embeds);
+						await executeHook(feeds[i], posts);
 					} catch (e) {
-						console.error("error posting webhook", e);
+						console.error('🔴 error posting to webhook', e);
 					}
 				}
 			}
 		}
-		await Storage.setItem(DBName, feeds);
 	} catch (e) {
-		console.error("error processing", e);
+		console.error('🔴 error processing', e);
 	} finally {
-		await Storage.removeItem(Processing);
-		console.log("ended processing");
+		// set feeds with last updated values
+		await set(process.env.DATABASE_NAME!, feeds);
+		await set('processing', false);
+		console.log(`[${new Date().toISOString()}] ended processing\n////\n`);
 	}
 };
 
-function truncateString(str: string, to: number) {
-	return str.length > to ? str.substring(0, to) + "..." : str;
-}
-
-async function executeHook(feed: Feed, embeds: DiscordEmbed[]) {
-	let username: any = feed.name;
-	let payload = {
-		allowed_mentions: [],
-		content: feed.name,
-		embeds: embeds,
-		username: username
-	};
-
-	if (process.env.SIMPLE) {
-		payload.content = `**${feed.name}**\n${embeds[0].title}\n${embeds[0].url}`;
-		payload.embeds = [];
-		delete payload['username'];
-	}
-
-	async function response(url = '', data = {}) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            "Content-type": "application/json;"
-        },
-        body: JSON.stringify(data)
-    });
-    
-    return response.json();
-}
-
-	response(`${feed.hookUrl}?wait=true`, payload )
-		.then(json => {
-			console.log(json) // Handle success
-		})
-		.catch(err => {
-			console.log(err) // Handle errors
+const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
+	// post to discord api
+	const response = async (url = '', data = {}) => {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-type': 'application/json;'
+			},
+			body: JSON.stringify(data)
 		});
-}
 
-function getColor(content: string | undefined): number {
-	if (typeof content === "undefined") {
-		return 0x0; // black
-	}
-	const c = content.toLowerCase();
-	if (c.indexOf("resolved") !== -1) {
-		return 0x69ffc3; // green
-	}
-	return 0xffca5f; // yellow
-}
+		return response.json();
+	};
+	// loop through post meta and format for webhook
+	for (const post of posts) {
+		const feedText = feed.name ? `### ${feed.name}\n` : '';
+		const titleText = post.title ? `:newspaper: *${post.title}*` : '';
+		const authorText = feed.author ? ` by <@${feed.author}>\n` : '\n';
+		const linkText = `\n${post.url}`;
+		const content = feedText + titleText + authorText + linkText;
 
-function htmlToMarkdown(content: string | undefined): string {
-	if (typeof content === "undefined") {
-		return "";
+		await response(`${feed.webhook}?wait=true`, { content: content })
+			.then((json) => {
+				console.log(`📬 successfully posted: ${json.content}\n`); // handle success
+			})
+			.catch((error) => {
+				console.error(`🔴 ${error}`); // handle errors
+			});
 	}
-
-	return content
-		.replace(/<strong>(.*?)<\/strong>/gi, "**$1**")
-		.replace(/<small>(.*?)<\/small>/gi, "_$1_");
-}
+};
