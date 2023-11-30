@@ -26,7 +26,7 @@ export const handleFeeds = async () => {
 			console.log(`✅ ${subs[i].name} [${subs[i].updated}]\n`);
 			// skip if status is set to false
 			if (!subs[i].status) {
-				console.log(`⏭️ skipping not active ${subs[i].name}\n`);
+				console.log(`	⏭️ skipping not active\n`);
 				continue;
 			}
 
@@ -37,7 +37,7 @@ export const handleFeeds = async () => {
 			if (!Number.isInteger(Date.parse(subs[i].updated))) {
 				const lastUpdated = feed.items.length ? feed.items[feed.items.length - 1].isoDate : '';
 				subs[i].updated = lastUpdated;
-				console.log(`*️⃣ first check ${subs[i].name}\n`);
+				console.log(`	*️⃣ first check\n`);
 				continue;
 			}
 
@@ -51,7 +51,7 @@ export const handleFeeds = async () => {
 				);
 			// check for posts
 			if (items.length > 0) {
-				console.log(`🎉 ${items.length} new post(s) found!\n`);
+				console.log(`	🎉 ${items.length} new post(s) found!\n`);
 				let posts: DiscordPost[] = [];
 				// loop through posts
 				for (const item of items) {
@@ -116,7 +116,7 @@ const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 
 		await response(`${feed.webhook}?wait=true`, { content: content })
 			.then((json) => {
-				console.log(`📬 successfully posted: ${json.content}\n`); // handle success
+				console.log(`📬 successfully posted:\n ${json.content}\n`); // handle success
 			})
 			.catch((error) => {
 				console.error(`🔴 ${error}`); // handle errors
