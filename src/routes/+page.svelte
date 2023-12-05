@@ -104,7 +104,7 @@
 					>
 					<div class="mt-2">
 						<input
-							type="number"
+							type="text"
 							required
 							bind:value={newSub.author}
 							name="author"
