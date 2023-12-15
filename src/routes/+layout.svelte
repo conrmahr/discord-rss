@@ -9,9 +9,9 @@
 			<nav class="mx-auto flex max-w-full justify-between p-6 lg:px-8" aria-label="Global">
 				<div class="flex lg:flex-1">
 					<a href="/" class="-m-1.5 p-1.5">
-						<span class="sr-only">Discord RSS Feed Manage</span>
+						<span class="sr-only">Discord RSS Feed Manager</span>
 						<img
-							class="h-12 w-12 rounded-full"
+							class="h-12 mt-4"
 							src="logo.png"
 							alt="Discord RSS Feed Manager"
 						/>

@@ -15,6 +15,14 @@
 		"build:runner": "tsc --module es2022 --target es2022 --moduleResolution node --allowSyntheticDefaultImports true --outDir runner src/runner.ts",
 		"runner": "node -r dotenv/config runner/runner.js"
 	},
+	"keywords": [
+		"discord",
+		"webhook",
+		"rss",
+		"node",
+		"svelte",
+		"authjs"
+	],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/conrmahr/discord-rss.git"
@@ -53,5 +61,8 @@
 		"@auth/sveltekit": "^0.3.11",
 		"ioredis": "^5.3.2",
 		"rss-parser": "^3.13.0"
+	},
+	"engines": {
+		"node": ">=18"
 	}
 }

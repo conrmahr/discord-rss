@@ -1,6 +1,6 @@
 # Discord RSS Feed Manager (Forked)
 
-RSS and Atom feeds to Discord webhooks with web management UI.
+Self-hosted RSS feed fetching and posting to Discord webhooks with web a management UI.
 
 ## Usage
 
@@ -23,11 +23,17 @@ The service can be configured using environment variables:
 - `DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
 - `DISCORD_AUTHORIZED_USERS` (required) comma-separated list of Discord user IDs for users allowed to access and modify the configuration
 
+### Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/3li6Gg?referralCode=MlYK0h)
+
 ## Screenshots
 
-![](./static/discord-rss.png)
+![](./static/discord-rss-web.png)
+![](./static/discord-rss-runner.png)
+![](./static/discord-rss-webhook.png)
 
 ## Credits
 
-- @3ventic For building the original version
-- @javorszky & @cassidoo For inspiration and putting it to good use
+- [@3ventic](https://github.com/3ventic) For building the original version
+- [@javorszky](https://github.com/javorszky) & [@cassidoo](https://github.com/cassidoo) For inspiration and putting it to good use
