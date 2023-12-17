@@ -18,6 +18,6 @@ export const load: LayoutServerLoad = async (event) => {
 	const session = await event.locals.getSession();
 	return {
 		session: session,
-		get: getFeeds()
+		get: await getFeeds()
 	};
 };
