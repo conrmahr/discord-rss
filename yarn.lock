@@ -20,20 +20,7 @@
     "@jridgewell/gen-mapping" "^0.3.0"
     "@jridgewell/trace-mapping" "^0.3.9"
 
-"@auth/core@0.18.5":
-  version "0.18.5"
-  resolved "https://registry.yarnpkg.com/@auth/core/-/core-0.18.5.tgz#7025d5c533588f9b01965c34ab32abf262987525"
-  integrity sha512-Ql8YobXp57mbXqHNaaroIAgBopKaxWI+3Tlu1rGcXW5KPzXdfTqijZ4HOuZvWKqmhbMWQ9xS9r8uG4fMonZYwg==
-  dependencies:
-    "@panva/hkdf" "^1.1.1"
-    "@types/cookie" "0.6.0"
-    cookie "0.6.0"
-    jose "^5.1.0"
-    oauth4webapi "^2.3.0"
-    preact "10.11.3"
-    preact-render-to-string "5.2.3"
-
-"@auth/core@^0.21.0":
+"@auth/core@0.21.0", "@auth/core@^0.21.0":
   version "0.21.0"
   resolved "https://registry.yarnpkg.com/@auth/core/-/core-0.21.0.tgz#c1877afc9ffe1058b013216f02dde910b6921076"
   integrity sha512-jUWYs8gjy2GvtP9dd/4S9KcwZ660Cm/IkybiAq96/2Ooku9SKk5SUG+UTEwkyLuaQ38ZgfwggfpDOgzsXEcufA==
@@ -46,12 +33,12 @@
     preact "10.11.3"
     preact-render-to-string "5.2.3"
 
-"@auth/sveltekit@^0.3.11":
-  version "0.3.16"
-  resolved "https://registry.yarnpkg.com/@auth/sveltekit/-/sveltekit-0.3.16.tgz#e68b933259a9028126a73ec212d9240764b361cf"
-  integrity sha512-p0GpzNfdQeWjn87HuWLNhQ/gq6w0JOm/e3Qp5bQ73sMfkyIVtaCmkRmXWqbTZ8tFaZdr5IGveHy3FtEIPrrMEQ==
+"@auth/sveltekit@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@auth/sveltekit/-/sveltekit-0.6.0.tgz#cf0141bde08855c5155c2adecf59e61204222008"
+  integrity sha512-9HLwBuP/ofpHVZ1NxItsSZAoFXMQzwTYrkj8UWYocouK9ZsgWXggaqynlOP8MD7JKLVCaN/WzqPuaqsUpW9HWA==
   dependencies:
-    "@auth/core" "0.18.5"
+    "@auth/core" "0.21.0"
 
 "@esbuild/aix-ppc64@0.19.11":
   version "0.19.11"
@@ -1468,11 +1455,6 @@ jiti@^1.19.1:
   resolved "https://registry.yarnpkg.com/jiti/-/jiti-1.21.0.tgz#7c97f8fe045724e136a397f7340475244156105d"
   integrity sha512-gFqAIbuKyyso/3G2qhiO2OM6shY6EPP/R0+mkDbyspxKazh8BXDC5FiFsUjlczgdNz/vfra0da2y+aHrusLG/Q==
 
-jose@^5.1.0:
-  version "5.1.3"
-  resolved "https://registry.yarnpkg.com/jose/-/jose-5.1.3.tgz#303959d85c51b5cb14725f930270b72be56abdca"
-  integrity sha512-GPExOkcMsCLBTi1YetY2LmkoY559fss0+0KVa6kOfb2YFe84nAM7Nm/XzuZozah4iHgmBGrCOHL5/cy670SBRw==
-
 jose@^5.1.3:
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/jose/-/jose-5.2.0.tgz#d0ffd7f7e31253f633eefb190a930cd14a916995"
@@ -1707,11 +1689,6 @@ normalize-range@^0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/normalize-range/-/normalize-range-0.1.2.tgz#2d10c06bdfd312ea9777695a4d28439456b75942"
   integrity sha512-bdok/XvKII3nUpklnV6P2hxtMNrCboOjAcyBuQnWEhO665FwrSNRxU+AqpsyvO6LgGYPspN+lu5CLtw4jPRKNA==
-
-oauth4webapi@^2.3.0:
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/oauth4webapi/-/oauth4webapi-2.4.0.tgz#2a5e75996a33878cced3f367753aa42f21d36e27"
-  integrity sha512-ZWl8ov8HeGVyc9Icl1cag76HvIcDAp23eIIT+UVGir+dEu8BMgMlvZeZwqLVd0P8DqaumH4N+QLQXN69G1QjSA==
 
 oauth4webapi@^2.4.0:
   version "2.6.0"

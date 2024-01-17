@@ -59,7 +59,7 @@
 	"type": "module",
 	"dependencies": {
 		"@auth/core": "^0.21.0",
-		"@auth/sveltekit": "^0.3.11",
+		"@auth/sveltekit": "^0.6.0",
 		"ioredis": "^5.3.2",
 		"rss-parser": "^3.13.0"
 	},
