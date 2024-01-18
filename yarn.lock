@@ -33,10 +33,10 @@
     preact "10.11.3"
     preact-render-to-string "5.2.3"
 
-"@auth/sveltekit@^0.6.0":
-  version "0.6.0"
-  resolved "https://registry.yarnpkg.com/@auth/sveltekit/-/sveltekit-0.6.0.tgz#cf0141bde08855c5155c2adecf59e61204222008"
-  integrity sha512-9HLwBuP/ofpHVZ1NxItsSZAoFXMQzwTYrkj8UWYocouK9ZsgWXggaqynlOP8MD7JKLVCaN/WzqPuaqsUpW9HWA==
+"@auth/sveltekit@^0.7.0":
+  version "0.7.0"
+  resolved "https://registry.yarnpkg.com/@auth/sveltekit/-/sveltekit-0.7.0.tgz#fd9430edfeb84cf6f6f24125e184e804794bb692"
+  integrity sha512-RZIRMU4rb9n7ltIlMEB4bAflBexPwu6jxGnY7Wcz31c7QMO1skASRQEThI/FUZIzFxQqYn1OvDF6yGz0hWrMKg==
   dependencies:
     "@auth/core" "0.21.0"
 

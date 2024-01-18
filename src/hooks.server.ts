@@ -1,8 +1,8 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Discord from '@auth/core/providers/discord';
 import {
-	DISCORD_CLIENT_ID,
-	DISCORD_CLIENT_SECRET,
+	AUTH_DISCORD_CLIENT_ID,
+	AUTH_DISCORD_CLIENT_SECRET,
 	DISCORD_AUTHORIZED_USERS
 } from '$env/static/private';
 
@@ -10,8 +10,8 @@ import {
 export const handle = SvelteKitAuth({
 	providers: [
 		Discord({
-			clientId: DISCORD_CLIENT_ID,
-			clientSecret: DISCORD_CLIENT_SECRET
+			clientId: AUTH_DISCORD_CLIENT_ID,
+			clientSecret: AUTH_DISCORD_CLIENT_SECRET
 		})
 	],
 	// Workaround until id is properly typed and returned
