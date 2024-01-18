@@ -1,30 +1,39 @@
-# Discord RSS Feed Manager
+# Discord RSS Feed Manager (Forked)
 
-RSS and Atom feeds to Discord webhooks with web management UI.
+Self-hosted RSS feed fetching and posting to Discord webhooks with web a management UI.
 
 ## Usage
 
-### Native
+### Development
 
-Install node 18+ and npm, and run `npm install`, `npm run sync`.
-For the web interface run `npm run build` and `npm start`.
-For the RSS poller run `npm run build:runner` and `npm run runner`.
-
-### Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/2LnViG?referralCode=6hr3nf)
+- Install Node 18+ and npm, and run `yarn install`.
+- For the web interface run `yarn run check` and `yarn run dev`.
+- For the RSS poller run `yarn run build:runner` and `yarn run runner`.
 
 ### Configuration
 
 The service can be configured using environment variables:
 
-- `PORT` (default 3000) port to listen on
-- `INTERVAL` (default 5) minutes between checks
+- `INTERVAL` (default 15) minutes between checks
 - `REDIS_URL` (required) redis connect url
-- `DISCORD_CLIENT_ID` (required) https://discord.com/developers/applications
-- `DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
+- `AUTH_SECRET` (required) random generated secret
+- `AUTH_TRUST_HOST` (required) boolean
+- `AUTH_DISCORD_CLIENT_ID` (required) https://discord.com/developers/applications
+  - Make sure to add `http://localhost:5173/auth/callback/discord`, or the production equivalant, to your OAuth2 redirects section.
+- `AUTH_DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
 - `DISCORD_AUTHORIZED_USERS` (required) comma-separated list of Discord user IDs for users allowed to access and modify the configuration
+
+### Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/3li6Gg?referralCode=MlYK0h)
 
 ## Screenshots
 
-![](https://meme.stream/fh/TangibleImmediatePartyTime-RSS_Settings__Firefox_Developer_Edition.png)
+![](./static/discord-rss-web.png)
+![](./static/discord-rss-runner.png)
+![](./static/discord-rss-webhook.png)
+
+## Credits
+
+- [@3ventic](https://github.com/3ventic) For building the original version
+- [@javorszky](https://github.com/javorszky) & [@cassidoo](https://github.com/cassidoo) For inspiration and putting it to good use

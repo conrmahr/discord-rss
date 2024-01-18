@@ -1,13 +1,11 @@
-import { Processing } from "./const.js";
-import { handleFeeds } from "./listener/listener.js";
-import Storage from "./storage.js";
+import { handleFeeds } from './listener/listener.js';
+import { set } from './lib/redis/index.js';
 
-const { INTERVAL } = process.env;
+await set('processing', false);
 
-await Storage.removeItem(Processing);
-const SECOND = 1000;
-const MINUTE = 60 * SECOND;
-setInterval(
-	handleFeeds,
-	(typeof INTERVAL === "undefined" ? 5 : parseInt(INTERVAL)) * MINUTE
-);
+const MINUTE = 60 * 1000;
+const SECONDS =
+	typeof process.env.INTERVAL === 'undefined'
+		? 15 * MINUTE
+		: parseInt(process.env.INTERVAL) * MINUTE;
+setInterval(handleFeeds, SECONDS); // set delay and run listener

@@ -1,24 +1,16 @@
 export type Feed = {
-	url: string;
-	lastItem?: { isoDate: string };
-	hookUrl: string;
+	id: string;
 	name: string;
-	imageUrl: string;
+	author: string;
+	url: string;
+	webhook: string;
+	thumbnail: string;
+	status: boolean;
+	updated: string;
 };
 
-export type DiscordEmbed = {
-	title?: string;
-	type?: "rich";
-	description?: string;
-	url?: string;
-	timestamp?: string;
-	color?: number;
-	thumbnail?: DiscordEmbedThumbnail;
-};
-
-export type DiscordEmbedThumbnail = {
-	url?: string;
-	proxy_url?: string;
-	height?: number;
-	width?: number;
+export type DiscordPost = {
+	name: string;
+	title: string;
+	url: string;
 };
