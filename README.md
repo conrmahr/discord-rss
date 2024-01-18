@@ -18,9 +18,9 @@ The service can be configured using environment variables:
 - `REDIS_URL` (required) redis connect url
 - `AUTH_SECRET` (required) random generated secret
 - `AUTH_TRUST_HOST` (required) boolean
-- `DISCORD_CLIENT_ID` (required) https://discord.com/developers/applications
+- `AUTH_DISCORD_CLIENT_ID` (required) https://discord.com/developers/applications
   - Make sure to add `http://localhost:5173/auth/callback/discord`, or the production equivalant, to your OAuth2 redirects section.
-- `DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
+- `AUTH_DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
 - `DISCORD_AUTHORIZED_USERS` (required) comma-separated list of Discord user IDs for users allowed to access and modify the configuration
 
 ### Railway
