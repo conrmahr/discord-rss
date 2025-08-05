@@ -1,6 +1,11 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import '../app.css';
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+
+	let { children }: Props = $props();
 </script>
 
 <div class="mx-auto max-w-full lg:px-88">
@@ -20,29 +25,29 @@
 				<div class="-hidden lg:flex lg:flex-1 lg:justify-end">
 					<div class="ml-4 mt-4">
 						<div class="flex items-center">
-							{#if $page.data.session}
-								<div class="flex-shrink-0">
-									{#if $page.data.session.user?.image}
+							{#if page.data.session}
+								<div class="shrink-0">
+									{#if page.data.session.user?.image}
 										<img
 											class="h-12 w-12 rounded-full"
-											src={$page.data.session.user.image}
+											src={page.data.session.user.image}
 											alt=""
 										/>
 									{/if}
 								</div>
 								<div class="ml-4">
 									<h3 class="text-base font-semibold leading-6 text-gray-900">
-										{$page.data.session.user?.name}
+										{page.data.session.user?.name}
 									</h3>
 									<p class="text-sm text-gray-500">
-										{$page.data.session.user?.email}
+										{page.data.session.user?.email}
 									</p>
 								</div>
 							{/if}
 						</div>
 					</div>
-					<div class="ml-4 mt-4 flex flex-shrink-0">
-						{#if $page.data.session}
+					<div class="ml-4 mt-4 flex shrink-0">
+						{#if page.data.session}
 							<a
 								href="/auth/signout"
 								class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
@@ -62,7 +67,7 @@
 			</nav>
 		</div>
 	</header>
-	<slot />
+	{@render children?.()}
 	<footer class="bg-white">
 		<div class="mx-auto px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
 			<div class="flex justify-center space-x-6 md:order-2">

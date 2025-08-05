@@ -1,5 +1,10 @@
 <script lang="ts">
-	export let provider: any;
+	interface Props {
+		provider: any;
+		children?: import('svelte').Snippet;
+	}
+
+	let { provider, children }: Props = $props();
 </script>
 
 <form action={provider.signinUrl} method="POST">
@@ -7,6 +12,6 @@
 		<input type="hidden" name="callbackUrl" value={provider.callbackUrl} />
 	{/if}
 	<button type="submit" class="button">
-		<slot>Sign in with {provider.name}</slot>
+		{#if children}{@render children()}{:else}Sign in with {provider.name}{/if}
 	</button>
 </form>

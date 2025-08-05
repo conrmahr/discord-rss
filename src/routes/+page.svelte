@@ -8,9 +8,9 @@
 	$subscriptions = $page.data.get;
 
 	// sort by most recent post
-	$: sortedSubs = $subscriptions.sort(
+	let sortedSubs = $derived($subscriptions.sort(
 		(a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
-	);
+	));
 
 	// grab sub obj out of store
 	const getSub = (id: string) => {
@@ -73,7 +73,7 @@
 	});
 
 	// clone the default subscription
-	let newSub = subBuilder();
+	let newSub = $state(subBuilder());
 </script>
 
 <!-- check if user is logged -->
@@ -207,7 +207,7 @@
 		<div class="mt-6 flex items-center justify-end gap-x-6">
 			<button
 				type="submit"
-				on:click={addSub}
+				onclick={addSub}
 				id="add"
 				class="rounded-md bg-orange-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
 				>Save</button
@@ -258,7 +258,7 @@
 									</td>
 									<td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm sm:pl-0">
 										<div class="flex items-center">
-											<div class="h-11 w-11 flex-shrink-0">
+											<div class="h-11 w-11 shrink-0">
 												<img class="h-11 w-11 rounded-full" src={sub.thumbnail} alt="" />
 											</div>
 											<div class="ml-4">
@@ -300,13 +300,13 @@
 									>
 										<button
 											type="submit"
-											on:click={() => editSub(sub.id)}
+											onclick={() => editSub(sub.id)}
 											class="text-orange-400 hover:text-orange-600"
 											>Edit<span class="sr-only">, {sub.name}</span></button
 										>
 										<button
 											type="submit"
-											on:click={() => deleteSub(sub.id)}
+											onclick={() => deleteSub(sub.id)}
 											class="text-orange-400 hover:text-orange-600"
 											>Delete<span class="sr-only">, {sub.name}</span></button
 										>
