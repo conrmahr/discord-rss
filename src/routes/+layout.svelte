@@ -26,7 +26,7 @@
 					<div class="ml-4 mt-4">
 						<div class="flex items-center">
 							{#if page.data.session}
-								<div class="flex-shrink-0">
+								<div class="shrink-0">
 									{#if page.data.session.user?.image}
 										<img
 											class="h-12 w-12 rounded-full"
@@ -46,7 +46,7 @@
 							{/if}
 						</div>
 					</div>
-					<div class="ml-4 mt-4 flex flex-shrink-0">
+					<div class="ml-4 mt-4 flex shrink-0">
 						{#if page.data.session}
 							<a
 								href="/auth/signout"
