@@ -6,9 +6,9 @@ Self-hosted RSS feed fetching and posting to Discord webhooks with web a managem
 
 ### Development
 
-- Install Node 18+ and npm, and run `yarn install`.
-- For the web interface run `yarn run check` and `yarn run dev`.
-- For the RSS poller run `yarn run build:runner` and `yarn run runner`.
+- Install Node >=22 and pnpm, and run `pnpm install`.
+- For the web interface run `pnpm run check` and `pnpm run dev`.
+- For the RSS poller run `pnpm run build:runner` and `pnpm run runner`.
 
 ### Configuration
 
