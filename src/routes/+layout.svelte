@@ -15,11 +15,7 @@
 				<div class="flex lg:flex-1">
 					<a href="/" class="-m-1.5 p-1.5">
 						<span class="sr-only">Discord RSS Feed Manager</span>
-						<img
-							class="h-12 mt-4"
-							src="logo.png"
-							alt="Discord RSS Feed Manager"
-						/>
+						<img class="h-12 mt-4" src="logo.png" alt="Discord RSS Feed Manager" />
 					</a>
 				</div>
 				<div class="-hidden lg:flex lg:flex-1 lg:justify-end">
@@ -28,11 +24,7 @@
 							{#if page.data.session}
 								<div class="shrink-0">
 									{#if page.data.session.user?.image}
-										<img
-											class="h-12 w-12 rounded-full"
-											src={page.data.session.user.image}
-											alt=""
-										/>
+										<img class="h-12 w-12 rounded-full" src={page.data.session.user.image} alt="" />
 									{/if}
 								</div>
 								<div class="ml-4">

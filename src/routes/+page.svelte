@@ -8,9 +8,9 @@
 	$subscriptions = $page.data.get;
 
 	// sort by most recent post
-	let sortedSubs = $derived($subscriptions.sort(
-		(a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
-	));
+	let sortedSubs = $derived(
+		$subscriptions.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+	);
 
 	// grab sub obj out of store
 	const getSub = (id: string) => {

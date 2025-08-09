@@ -4,7 +4,7 @@ export const extractChannel = (urlString: string) => {
 		const url = new URL(urlString);
 		const path = url.pathname;
 		return path.split('/')[3];
-	} catch (e) {
+	} catch {
 		return 'Invalid URL';
 	}
 };
@@ -15,7 +15,7 @@ export const humanUTCDateTime = (dateString: string) => {
 	let date;
 	try {
 		date = new Date(dateString);
-	} catch (e) {
+	} catch {
 		return false;
 	}
 	return date.toUTCString();
@@ -31,7 +31,7 @@ export const truncateURL = (urlString: string) => {
 	let url;
 	try {
 		url = new URL(urlString);
-	} catch (e) {
+	} catch {
 		return 'Invalid URL';
 	}
 	return url.hostname;
