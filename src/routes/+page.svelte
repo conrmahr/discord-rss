@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { truncateURL, truncateString, extractChannel, humanUTCDateTime } from '$lib/helpers';
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
 
 	// grab current subs on load
-	$subscriptions = $page.data.get;
+	$subscriptions = page.data.get;
 
 	// sort by most recent post
 	let sortedSubs = $derived(
@@ -74,10 +74,11 @@
 
 	// clone the default subscription
 	let newSub = $state(subBuilder());
+
 </script>
 
 <!-- check if user is logged -->
-{#if $page.data.session}
+{#if page.data.session}
 	<div class="mx-auto max-w-full lg:px-8">
 		<div class="border-b border-gray-900/10 pb-12">
 			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
