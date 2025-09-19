@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { truncateURL, truncateString, extractChannel, humanUTCDateTime } from '$lib/helpers';
+	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
 
@@ -58,7 +58,12 @@
 	const editSub = (id: string) => {
 		// get item from store and set the fill the fields
 		const currentSub = getSub(id);
-		newSub = currentSub;
+		newSub = { ...currentSub };
+		// convert UTC datetime to local datetime-local format
+		if (newSub.updated) {
+			const date = new Date(newSub.updated);
+			newSub.updated = date.toISOString().slice(0, 16);
+		}
 	};
 
 	// subscription placeholder
@@ -168,7 +173,7 @@
 
 				<div class="sm:col-span-1">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Updated (UTC)</label
+						>Last Updated (Local)</label
 					>
 					<div class="mt-2">
 						<input
@@ -294,7 +299,8 @@
 										>
 									</td>
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500"
-										>{humanUTCDateTime(sub.updated)}</td
+										><code>{sub.updated}</code>
+									</td
 									>
 									<td
 										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"
