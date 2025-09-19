@@ -23,9 +23,7 @@
 						<div class="flex items-center">
 							{#if page.data.session}
 								<div class="shrink-0">
-									{#if page.data.session.user?.image}
-										<img class="h-12 w-12 rounded-full" src={page.data.session.user.image} alt="" />
-									{/if}
+									<img class="h-12 w-12 rounded-full" src={page.data.session.user?.image} alt="" />
 								</div>
 								<div class="ml-4">
 									<h3 class="text-base font-semibold leading-6 text-gray-900">
