@@ -1,10 +1,11 @@
 export type Feed = {
 	id: string;
-	name: string;
-	author: string;
 	url: string;
+	website: string;
 	webhook: string;
+	name: string;
 	thumbnail: string;
+	author: string;
 	status: boolean;
 	updated: string;
 };

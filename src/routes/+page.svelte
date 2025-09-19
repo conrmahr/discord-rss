@@ -23,7 +23,7 @@
 		if (newSub.id) deleteSub(newSub.id);
 		// add the new sub directly to the store
 		$subscriptions = [...$subscriptions, newSub];
-		
+
 		// post store to database
 		await fetch('/api', {
 			method: 'POST',
@@ -32,7 +32,7 @@
 				'Content-Type': 'application/json'
 			}
 		});
-		
+
 		// reset the local object & create a new one
 		newSub = subBuilder();
 		// create new unique id
@@ -42,18 +42,18 @@
 	const deleteSub = async (id: string) => {
 		// filter out unique id and update store
 		subscriptions.update((subscriptions) =>
-		subscriptions.filter((sub: { id: string }) => sub.id !== id)
-	);
-	
-	// post store to database
-	await fetch('/api', {
-		method: 'POST',
-		body: JSON.stringify($subscriptions),
-		headers: {
-			'Content-Type': 'application/json'
-		}
-	});
-};
+			subscriptions.filter((sub: { id: string }) => sub.id !== id)
+		);
+
+		// post store to database
+		await fetch('/api', {
+			method: 'POST',
+			body: JSON.stringify($subscriptions),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+	};
 
 	const editSub = (id: string) => {
 		// get item from store and set the fill the fields
@@ -69,11 +69,12 @@
 	// subscription placeholder
 	const subBuilder: () => Feed = () => ({
 		id: crypto.randomUUID(),
-		name: '',
-		author: '',
 		url: '',
+		website: '',
+		name: '',
 		webhook: '',
 		thumbnail: '',
+		author: '',
 		status: false,
 		updated: ''
 	});
@@ -81,68 +82,115 @@
 	// clone the default subscription
 	let newSub = $state(subBuilder());
 
+	// export OPML file
+	const exportOPML = () => {
+		if (!page.data.session) return;
+
+		const opmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.0">
+	<head>
+		<title>RSS Subscriptions</title>
+		<dateCreated>${new Date().toUTCString()}</dateCreated>
+		<ownerEmail>${page.data.session.user?.email}</ownerEmail>
+	</head>
+	<body>
+${$subscriptions
+	.map(
+		(sub) =>
+			`		<outline text="${sub.name}" title="${sub.name}" type="rss" xmlUrl="${sub.url}" htmlUrl="${sub.website}" />`
+	)
+	.join('\n')}
+	</body>
+</opml>`;
+
+		const blob = new Blob([opmlContent], { type: 'application/xml' });
+		const url = URL.createObjectURL(blob);
+
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'rss-subscriptions.opml';
+		link.click();
+
+		URL.revokeObjectURL(url);
+	};
 </script>
 
 <!-- check if user is logged -->
 {#if page.data.session}
-<div class="mx-auto max-w-full lg:px-8">
-	<div class="border-b border-gray-900/10 pb-12">
-		<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-			<div class="sm:col-span-2">
-				<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
-				>
-				<div class="mt-2">
-					<input
-						type="url"
-						required
-						bind:value={newSub.url}
-						name="url"
-						id="url"
-						placeholder="https://domain.com/feed.xml"
-						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-					/>
+	<div class="mx-auto max-w-full lg:px-8">
+		<div class="border-b border-gray-900/10 pb-12">
+			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+				<div class="sm:col-span-2">
+					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
+					>
+					<div class="mt-2">
+						<input
+							type="url"
+							required
+							bind:value={newSub.url}
+							name="url"
+							id="url"
+							placeholder="https://domain.com/feed.xml"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
 				</div>
-			</div>
-			
-			<div class="sm:col-span-2">
-				<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
-					>Thumbnail URL</label
-				>
-				<div class="mt-2">
-					<input
-						type="url"
-						required
-						bind:value={newSub.thumbnail}
-						name="thumbnail"
-						id="thumbnail"
-						placeholder="https://domain.com/favicon.png"
-						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-					/>
+
+				<div class="sm:col-span-2">
+					<label for="website" class="block text-sm font-medium leading-6 text-gray-900"
+						>Website URL</label
+					>
+					<div class="mt-2">
+						<input
+							type="url"
+							required
+							bind:value={newSub.website}
+							name="website"
+							id="website"
+							placeholder="https://domain.com"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
 				</div>
-			</div>
-			
-			<div class="sm:col-span-2">
-				<label for="webhook" class="block text-sm font-medium leading-6 text-gray-900"
-					>Webhook URL</label
-				>
-				<div class="mt-2">
-					<input
-						type="url"
-						required
-						bind:value={newSub.webhook}
-						name="webhook"
-						id="webhook"
-						placeholder="https://discord.com/api/webhooks/id/token"
-						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-					/>
+
+				<div class="sm:col-span-2">
+					<label for="webhook" class="block text-sm font-medium leading-6 text-gray-900"
+						>Webhook URL</label
+					>
+					<div class="mt-2">
+						<input
+							type="url"
+							required
+							bind:value={newSub.webhook}
+							name="webhook"
+							id="webhook"
+							placeholder="https://discord.com/api/webhooks/id/token"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
 				</div>
-			</div>
-			<div class="sm:col-span-2">
-				<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
-				>Feed Name</label
-				>
-				<div class="mt-2">
-					<input
+				<div class="sm:col-span-2">
+					<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
+						>Thumbnail URL</label
+					>
+					<div class="mt-2">
+						<input
+							type="text"
+							required
+							bind:value={newSub.thumbnail}
+							name="thumbnail"
+							id="thumbnail"
+							placeholder="https://domain.com/favicon.png"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
+				</div>
+				<div class="sm:col-span-1">
+					<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
+						>Feed Name</label
+					>
+					<div class="mt-2">
+						<input
 							type="text"
 							required
 							bind:value={newSub.name}
@@ -186,7 +234,7 @@
 					</div>
 				</div>
 
-				<div class="sm:col-span-2">
+				<div class="sm:col-span-1">
 					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
 						>Active</label
 					>
@@ -205,7 +253,6 @@
 						</label>
 					</div>
 				</div>
-
 			</div>
 		</div>
 	</div>
@@ -223,6 +270,14 @@
 			<div class="sm:flex-auto">
 				<h1 class="text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
 				<p class="mt-2 text-sm text-gray-700">A list of all the RSS Feed subscriptions.</p>
+			</div>
+			<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+				<button
+					type="button"
+					onclick={exportOPML}
+					class="block rounded-md bg-orange-400 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+					>Export OPML</button
+				>
 			</div>
 		</div>
 		<div class="mt-8 flow-root">
@@ -265,10 +320,16 @@
 									<td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm sm:pl-0">
 										<div class="flex items-center">
 											<div class="h-11 w-11 shrink-0">
-												<img class="h-11 w-11 rounded-full" src={sub.thumbnail?.startsWith('http') ? sub.thumbnail : '/feed-icon.svg'} alt="" />
+												<img
+													class="h-11 w-11 rounded-full"
+													src={sub.thumbnail?.startsWith('http') ? sub.thumbnail : '/feed-icon.svg'}
+													alt=""
+												/>
 											</div>
 											<div class="ml-4">
-												<div class="font-medium text-gray-900">{sub.name}</div>
+												<div class="font-medium text-gray-900">
+													<a href={sub.website} title={sub.name} target="_blank">{sub.name}</a>
+												</div>
 												<div class="mt-1 text-gray-500">{sub.author ?? ''}</div>
 											</div>
 										</div>
@@ -300,8 +361,7 @@
 									</td>
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500"
 										><code>{sub.updated}</code>
-									</td
-									>
+									</td>
 									<td
 										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"
 									>
