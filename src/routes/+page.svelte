@@ -23,10 +23,6 @@
 		if (newSub.id) deleteSub(newSub.id);
 		// add the new sub directly to the store
 		$subscriptions = [...$subscriptions, newSub];
-		// reset the local object & create a new one
-		newSub = subBuilder();
-		// create new unique id
-		newSub.id = crypto.randomUUID();
 
 		// post store to database
 		await fetch('/api', {
@@ -36,6 +32,11 @@
 				'Content-Type': 'application/json'
 			}
 		});
+
+		// reset the local object & create a new one
+		newSub = subBuilder();
+		// create new unique id
+		newSub.id = crypto.randomUUID();
 	};
 
 	const deleteSub = async (id: string) => {
