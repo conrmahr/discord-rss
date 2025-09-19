@@ -23,7 +23,7 @@
 		if (newSub.id) deleteSub(newSub.id);
 		// add the new sub directly to the store
 		$subscriptions = [...$subscriptions, newSub];
-
+		
 		// post store to database
 		await fetch('/api', {
 			method: 'POST',
@@ -32,7 +32,7 @@
 				'Content-Type': 'application/json'
 			}
 		});
-
+		
 		// reset the local object & create a new one
 		newSub = subBuilder();
 		// create new unique id
@@ -42,18 +42,18 @@
 	const deleteSub = async (id: string) => {
 		// filter out unique id and update store
 		subscriptions.update((subscriptions) =>
-			subscriptions.filter((sub: { id: string }) => sub.id !== id)
-		);
-
-		// post store to database
-		await fetch('/api', {
-			method: 'POST',
-			body: JSON.stringify($subscriptions),
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		});
-	};
+		subscriptions.filter((sub: { id: string }) => sub.id !== id)
+	);
+	
+	// post store to database
+	await fetch('/api', {
+		method: 'POST',
+		body: JSON.stringify($subscriptions),
+		headers: {
+			'Content-Type': 'application/json'
+		}
+	});
+};
 
 	const editSub = (id: string) => {
 		// get item from store and set the fill the fields
@@ -80,22 +80,71 @@
 
 <!-- check if user is logged -->
 {#if page.data.session}
-	<div class="mx-auto max-w-full lg:px-8">
-		<div class="border-b border-gray-900/10 pb-12">
-			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-				<div class="sm:col-span-1">
-					<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
-						>Feed Name</label
-					>
-					<div class="mt-2">
-						<input
+<div class="mx-auto max-w-full lg:px-8">
+	<div class="border-b border-gray-900/10 pb-12">
+		<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+			<div class="sm:col-span-2">
+				<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
+				>
+				<div class="mt-2">
+					<input
+						type="url"
+						required
+						bind:value={newSub.url}
+						name="url"
+						id="url"
+						placeholder="https://domain.com/feed.xml"
+						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+					/>
+				</div>
+			</div>
+			
+			<div class="sm:col-span-2">
+				<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
+					>Thumbnail URL</label
+				>
+				<div class="mt-2">
+					<input
+						type="url"
+						required
+						bind:value={newSub.thumbnail}
+						name="thumbnail"
+						id="thumbnail"
+						placeholder="https://domain.com/favicon.png"
+						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+					/>
+				</div>
+			</div>
+			
+			<div class="sm:col-span-2">
+				<label for="webhook" class="block text-sm font-medium leading-6 text-gray-900"
+					>Webhook URL</label
+				>
+				<div class="mt-2">
+					<input
+						type="url"
+						required
+						bind:value={newSub.webhook}
+						name="webhook"
+						id="webhook"
+						placeholder="https://discord.com/api/webhooks/id/token"
+						class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+					/>
+				</div>
+			</div>
+			<div class="sm:col-span-2">
+				<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
+				>Feed Name</label
+				>
+				<div class="mt-2">
+					<input
 							type="text"
 							required
 							bind:value={newSub.name}
 							name="name"
 							id="name"
-							placeholder="My Blog"
-							class="block rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+							placeholder="Blog Title"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
 				</div>
@@ -117,23 +166,22 @@
 					</div>
 				</div>
 
-				<div class="sm:col-span-2">
+				<div class="sm:col-span-1">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
 						>Last Updated (UTC)</label
 					>
 					<div class="mt-2">
 						<input
-							type="text"
+							type="datetime-local"
 							bind:value={newSub.updated}
 							id="updated"
 							name="updated"
-							placeholder="YYYY-MM-DDTHH:MM:SS"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
 						>Active</label
 					>
@@ -153,55 +201,6 @@
 					</div>
 				</div>
 
-				<div class="sm:col-span-2">
-					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.url}
-							name="url"
-							id="url"
-							placeholder="https://domain.com/feed.xml"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
-						>Thumbnail URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.thumbnail}
-							name="thumbnail"
-							id="thumbnail"
-							placeholder="https://domain.com/favicon.png"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="webhook" class="block text-sm font-medium leading-6 text-gray-900"
-						>Webhook URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.webhook}
-							name="webhook"
-							id="webhook"
-							placeholder="https://discord.com/api/webhooks/id/token"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
 			</div>
 		</div>
 	</div>
