@@ -21,8 +21,16 @@
 	const addSub = async () => {
 		// check if editing item and delete it
 		if (newSub.id) deleteSub(newSub.id);
+
+		// convert datetime-local input back to UTC before saving
+		const subToSave = { ...newSub };
+		if (subToSave.updated) {
+			// Treat input as UTC time and convert to ISO string
+			subToSave.updated = new Date(subToSave.updated + 'Z').toISOString();
+		}
+
 		// add the new sub directly to the store
-		$subscriptions = [...$subscriptions, newSub];
+		$subscriptions = [...$subscriptions, subToSave];
 
 		// post store to database
 		await fetch('/api', {
@@ -59,9 +67,10 @@
 		// get item from store and set the fill the fields
 		const currentSub = getSub(id);
 		newSub = { ...currentSub };
-		// convert UTC datetime to local datetime-local format
+		// convert UTC datetime to datetime-local format (keeping UTC)
 		if (newSub.updated) {
 			const date = new Date(newSub.updated);
+			// Display UTC time directly without timezone conversion
 			newSub.updated = date.toISOString().slice(0, 16);
 		}
 	};
@@ -221,7 +230,7 @@ ${$subscriptions
 
 				<div class="sm:col-span-1">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Updated (Local)</label
+						>Last Updated (UTC)</label
 					>
 					<div class="mt-2">
 						<input
