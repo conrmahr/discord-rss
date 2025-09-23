@@ -6,7 +6,7 @@
 	import type { Feed } from '../types';
 
 	// use server data directly, keep store for API calls only
-	let serverSubs = $derived(page.data.get || []);
+	let serverSubs = $derived(Array.isArray(page.data.get) ? page.data.get : []);
 
 	// sort by most recent post
 	let sortedSubs = $derived(
