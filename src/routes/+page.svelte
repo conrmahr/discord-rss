@@ -1,37 +1,82 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { truncateURL, truncateString, extractChannel, cleanDiscordIds } from '$lib/helpers';
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
 
-	// grab current subs on load
-	$subscriptions = page.data.get;
+	// use server data directly, keep store for API calls only
+	let serverSubs = $derived(page.data.get || []);
 
 	// sort by most recent post
 	let sortedSubs = $derived(
-		$subscriptions.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+		serverSubs.sort(
+			(a: Feed, b: Feed) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
+		)
 	);
 
-	// grab sub obj out of store
+	// grab sub obj from server data
 	const getSub = (id: string) => {
-		const [obj] = $subscriptions.filter((sub) => sub.id === id);
+		const [obj] = serverSubs.filter((sub: Feed) => sub.id === id);
 		return obj;
 	};
 
 	const addSub = async () => {
-		// check if editing item and delete it
-		if (newSub.id) deleteSub(newSub.id);
-		// add the new sub directly to the store
-		$subscriptions = [...$subscriptions, newSub];
+		// validate required fields
+		const requiredFields: (keyof Feed)[] = ['url', 'website', 'webhook', 'name'];
+		const missingFields = requiredFields.filter((field) => {
+			const value = newSub[field];
+			return !value || (typeof value === 'string' && value.trim() === '');
+		});
 
-		// post store to database
-		await fetch('/api', {
+		if (missingFields.length > 0) {
+			// Use browser's native form validation instead of alert
+			return false;
+		}
+
+		// combine separate date and time fields into UTC datetime
+		const subToSave = { ...newSub };
+		if (subToSave.updatedDate && subToSave.updatedTime) {
+			// Combine date and time as UTC
+			subToSave.updated = new Date(
+				`${subToSave.updatedDate}T${subToSave.updatedTime}Z`
+			).toISOString();
+		} else if (subToSave.updatedDate) {
+			// Date only, set time to 00:00:00 UTC
+			subToSave.updated = new Date(`${subToSave.updatedDate}T00:00:00Z`).toISOString();
+		} else {
+			subToSave.updated = '';
+		}
+		// Remove temporary fields
+		delete subToSave.updatedDate;
+		delete subToSave.updatedTime;
+
+		// prepare updated data
+		let updatedSubs;
+		if (subToSave.id && serverSubs.some((sub: Feed) => sub.id === subToSave.id)) {
+			// update existing subscription
+			updatedSubs = serverSubs.map((sub: Feed) => (sub.id === subToSave.id ? subToSave : sub));
+		} else {
+			// add new subscription
+			if (!subToSave.id) {
+				subToSave.id = crypto.randomUUID();
+			}
+			updatedSubs = [...serverSubs, subToSave];
+		}
+
+		// post updated data to database
+		const response = await fetch('/api', {
 			method: 'POST',
-			body: JSON.stringify($subscriptions),
+			body: JSON.stringify(updatedSubs),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
+
+		if (response.ok) {
+			// reload page data to get fresh data from server
+			await invalidateAll();
+		}
 
 		// reset the local object & create a new one
 		newSub = subBuilder();
@@ -40,29 +85,36 @@
 	};
 
 	const deleteSub = async (id: string) => {
-		// filter out unique id and update store
-		subscriptions.update((subscriptions) =>
-			subscriptions.filter((sub: { id: string }) => sub.id !== id)
-		);
+		// filter out unique id from server data
+		const updatedSubs = serverSubs.filter((sub: { id: string }) => sub.id !== id);
 
-		// post store to database
-		await fetch('/api', {
+		// post updated data to database
+		const response = await fetch('/api', {
 			method: 'POST',
-			body: JSON.stringify($subscriptions),
+			body: JSON.stringify(updatedSubs),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
+
+		if (response.ok) {
+			// reload page data to get fresh data from server
+			await invalidateAll();
+		}
 	};
 
 	const editSub = (id: string) => {
 		// get item from store and set the fill the fields
 		const currentSub = getSub(id);
 		newSub = { ...currentSub };
-		// convert UTC datetime to local datetime-local format
+		// split UTC datetime into separate date and time fields
 		if (newSub.updated) {
 			const date = new Date(newSub.updated);
-			newSub.updated = date.toISOString().slice(0, 16);
+			newSub.updatedDate = date.toISOString().slice(0, 10); // YYYY-MM-DD
+			newSub.updatedTime = date.toISOString().slice(11, 19); // HH:MM:SS
+		} else {
+			newSub.updatedDate = '';
+			newSub.updatedTime = '';
 		}
 	};
 
@@ -81,6 +133,14 @@
 
 	// clone the default subscription
 	let newSub = $state(subBuilder());
+
+	// clear form function
+	const clearForm = () => {
+		newSub = subBuilder();
+	};
+
+	// reactive validation using Svelte 5 $derived
+	let isFormValid = $derived(newSub.url && newSub.website && newSub.webhook && newSub.name);
 
 	// export OPML file
 	const exportOPML = () => {
@@ -118,7 +178,7 @@ ${$subscriptions
 <!-- check if user is logged -->
 {#if page.data.session}
 	<div class="mx-auto max-w-full lg:px-8">
-		<div class="border-b border-gray-900/10 pb-12">
+		<div class="pb-12">
 			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
 				<div class="sm:col-span-2">
 					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
@@ -176,7 +236,6 @@ ${$subscriptions
 					<div class="mt-2">
 						<input
 							type="text"
-							required
 							bind:value={newSub.thumbnail}
 							name="thumbnail"
 							id="thumbnail"
@@ -185,7 +244,7 @@ ${$subscriptions
 						/>
 					</div>
 				</div>
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
 						>Feed Name</label
 					>
@@ -202,33 +261,48 @@ ${$subscriptions
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="author" class="block text-sm font-medium leading-6 text-gray-900"
-						>Author</label
+						>Author(s)</label
 					>
 					<div class="mt-2">
 						<input
 							type="text"
-							required
 							bind:value={newSub.author}
 							name="author"
 							id="author"
-							placeholder="Discord User ID"
+							placeholder="Discord User ID(s) separated by commas (e.g. 123456789,987654321)"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Updated (Local)</label
+						>Last Updated (UTC)</label
 					>
-					<div class="mt-2">
+					<div class="mt-2 flex gap-2">
 						<input
-							type="datetime-local"
-							bind:value={newSub.updated}
-							id="updated"
-							name="updated"
+							type="date"
+							bind:value={newSub.updatedDate}
+							id="updated-date"
+							name="updated-date"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
+				</div>
+
+				<div class="sm:col-span-2">
+					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
+						>Last Updated (UTC)</label
+					>
+					<div class="mt-2 flex gap-2">
+						<input
+							type="time"
+							bind:value={newSub.updatedTime}
+							step="1"
+							id="updated-time"
+							name="updated-time"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
@@ -236,11 +310,11 @@ ${$subscriptions
 
 				<div class="sm:col-span-1">
 					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
-						>Active</label
+						>Enabled</label
 					>
-					<div class="mt-2">
-						<label class="relative inline-flex items-center mb-5 cursor-pointer">
-							<input type="hidden" bind:value={newSub.id} />
+					<div class="mt-2 flex items-center gap-2">
+						<label class="relative inline-flex items-center mb-5 cursor-pointer"
+							><input type="hidden" bind:value={newSub.id} />
 							<input
 								type="checkbox"
 								bind:checked={newSub.status}
@@ -249,35 +323,44 @@ ${$subscriptions
 							/>
 							<div
 								class="w-11 h-6 bg-gray-100 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-300 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after::bg-orange-300 after:w-5 after:h-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-300"
-							></div>
-						</label>
+							></div></label
+						>
+					</div>
+				</div>
+
+				<div class="sm:col-span-6">
+					<div class="mt-2 flex items-center justify-end gap-2">
+						<button
+							type="submit"
+							onclick={addSub}
+							id="add"
+							disabled={!isFormValid}
+							class="rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {isFormValid
+								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
+								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}">Save</button
+						>
+						<button
+							type="button"
+							onclick={clearForm}
+							class="rounded-md bg-red-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+							>Clear</button
+						>
+						<button
+							type="button"
+							onclick={exportOPML}
+							class="rounded-md bg-gray-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
+							>Export</button
+						>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 	<div class="mx-auto max-w-full lg:px-8">
-		<div class="mt-6 flex items-center justify-end gap-x-6">
-			<button
-				type="submit"
-				onclick={addSub}
-				id="add"
-				class="rounded-md bg-orange-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
-				>Save</button
-			>
-		</div>
 		<div class="sm:flex sm:items-center">
 			<div class="sm:flex-auto">
 				<h1 class="text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
 				<p class="mt-2 text-sm text-gray-700">A list of all the RSS Feed subscriptions.</p>
-			</div>
-			<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-				<button
-					type="button"
-					onclick={exportOPML}
-					class="block rounded-md bg-orange-400 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
-					>Export OPML</button
-				>
 			</div>
 		</div>
 		<div class="mt-8 flow-root">
@@ -360,7 +443,7 @@ ${$subscriptions
 										>
 									</td>
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500"
-										><code>{sub.updated}</code>
+										><code>{sub.updated.length > 0 ? sub.updated : 'Pending'}</code>
 									</td>
 									<td
 										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"

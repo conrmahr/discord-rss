@@ -13,7 +13,7 @@
 		<div class="bg-stone-50">
 			<nav class="mx-auto flex max-w-full justify-between p-6 lg:px-8" aria-label="Global">
 				<div class="flex lg:flex-1">
-					<a href="/" class="-m-1.5 p-1.5">
+					<a href="/" class="-m-1.5 p-1.5" data-sveltekit-reload>
 						<span class="sr-only">Discord RSS Feed Manager</span>
 						<img class="h-12 mt-4" src="logo.png" alt="Discord RSS Feed Manager" />
 					</a>

@@ -24,3 +24,13 @@ export const truncateURL = (urlString: string) => {
 	}
 	return url.hostname;
 };
+
+// helper function to clean and validate Discord IDs
+export const cleanDiscordIds = (input: string): string => {
+	if (!input) return '';
+	return input
+		.split(',')
+		.map((id) => id.trim())
+		.filter((id) => id && /^\d+$/.test(id)) // only numeric IDs
+		.join(', ');
+};
