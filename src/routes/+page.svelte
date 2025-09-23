@@ -104,6 +104,11 @@
 	// clone the default subscription
 	let newSub = $state(subBuilder());
 
+	// clear form function
+	const clearForm = () => {
+		newSub = subBuilder();
+	};
+
 	// export OPML file
 	const exportOPML = () => {
 		if (!page.data.session) return;
@@ -279,7 +284,7 @@ ${$subscriptions
 					<div class="mt-2 flex items-center gap-2">
 						<label class="relative inline-flex items-center mb-5 cursor-pointer"
 							><input type="hidden" bind:value={newSub.id} />
-							<input type="checkbox" id="active" class="sr-only peer" />
+							<input type="checkbox" bind:checked={newSub.status} id="active" class="sr-only peer" />
 							<div
 								class="w-11 h-6 bg-gray-100 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-300 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after::bg-orange-300 after:w-5 after:h-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-300"
 							></div></label
@@ -295,6 +300,12 @@ ${$subscriptions
 							id="add"
 							class="rounded-md bg-orange-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
 							>Save</button
+						>
+						<button
+							type="button"
+							onclick={clearForm}
+							class="rounded-md bg-red-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+							>Clear</button
 						>
 						<button
 							type="button"
