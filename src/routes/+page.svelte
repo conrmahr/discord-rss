@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
