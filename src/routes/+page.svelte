@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { truncateURL, truncateString, extractChannel, cleanDiscordIds } from '$lib/helpers';
+	import { invalidateAll } from '$app/navigation';
+	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
 	import { exportOPML } from '$lib/export';
 	import type { Feed } from '../types';
 
