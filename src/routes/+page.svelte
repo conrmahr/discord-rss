@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { truncateURL, truncateString, extractChannel, cleanDiscordIds } from '$lib/helpers';
-	import { subscriptions } from '$lib/stores';
+	import { exportOPML } from '$lib/export';
 	import type { Feed } from '../types';
 
 	// use server data directly, keep store for API calls only
@@ -143,35 +143,9 @@
 	let isFormValid = $derived(newSub.url && newSub.website && newSub.webhook && newSub.name);
 
 	// export OPML file
-	const exportOPML = () => {
+	const handleExportOPML = () => {
 		if (!page.data.session) return;
-
-		const opmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<opml version="1.0">
-	<head>
-		<title>RSS Subscriptions</title>
-		<dateCreated>${new Date().toUTCString()}</dateCreated>
-		<ownerEmail>${page.data.session.user?.email}</ownerEmail>
-	</head>
-	<body>
-${$subscriptions
-	.map(
-		(sub) =>
-			`		<outline text="${sub.name}" title="${sub.name}" type="rss" xmlUrl="${sub.url}" htmlUrl="${sub.website}" />`
-	)
-	.join('\n')}
-	</body>
-</opml>`;
-
-		const blob = new Blob([opmlContent], { type: 'application/xml' });
-		const url = URL.createObjectURL(blob);
-
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = 'rss-subscriptions.opml';
-		link.click();
-
-		URL.revokeObjectURL(url);
+		exportOPML(serverSubs, page.data.session.user?.email || undefined);
 	};
 </script>
 
@@ -347,7 +321,7 @@ ${$subscriptions
 						>
 						<button
 							type="button"
-							onclick={exportOPML}
+							onclick={handleExportOPML}
 							class="rounded-md bg-gray-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
 							>Export</button
 						>
