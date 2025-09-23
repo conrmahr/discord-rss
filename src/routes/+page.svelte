@@ -20,6 +20,15 @@
 	};
 
 	const addSub = async () => {
+		// validate required fields
+		const requiredFields = ['url', 'website', 'webhook', 'name'];
+		const missingFields = requiredFields.filter(field => !newSub[field] || newSub[field].trim() === '');
+
+		if (missingFields.length > 0) {
+			// Use browser's native form validation instead of alert
+			return false;
+		}
+
 		// combine separate date and time fields into UTC datetime
 		const subToSave = { ...newSub };
 		if (subToSave.updatedDate && subToSave.updatedTime) {
@@ -127,6 +136,11 @@
 		newSub = subBuilder();
 	};
 
+	// reactive validation using Svelte 5 $derived
+	let isFormValid = $derived(
+		newSub.url && newSub.website && newSub.webhook && newSub.name
+	);
+
 	// export OPML file
 	const exportOPML = () => {
 		if (!page.data.session) return;
@@ -221,7 +235,6 @@ ${$subscriptions
 					<div class="mt-2">
 						<input
 							type="text"
-							required
 							bind:value={newSub.thumbnail}
 							name="thumbnail"
 							id="thumbnail"
@@ -254,7 +267,6 @@ ${$subscriptions
 					<div class="mt-2">
 						<input
 							type="text"
-							required
 							bind:value={newSub.author}
 							name="author"
 							id="author"
@@ -316,7 +328,10 @@ ${$subscriptions
 							type="submit"
 							onclick={addSub}
 							id="add"
-							class="rounded-md bg-orange-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+							disabled={!isFormValid}
+							class="rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {isFormValid
+								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
+								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
 							>Save</button
 						>
 						<button
