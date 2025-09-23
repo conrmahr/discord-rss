@@ -30,7 +30,7 @@ export const cleanDiscordIds = (input: string): string => {
 	if (!input) return '';
 	return input
 		.split(',')
-		.map(id => id.trim())
-		.filter(id => id && /^\d+$/.test(id)) // only numeric IDs
+		.map((id) => id.trim())
+		.filter((id) => id && /^\d+$/.test(id)) // only numeric IDs
 		.join(', ');
 };

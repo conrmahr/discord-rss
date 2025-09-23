@@ -10,19 +10,24 @@
 
 	// sort by most recent post
 	let sortedSubs = $derived(
-		serverSubs.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+		serverSubs.sort(
+			(a: Feed, b: Feed) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
+		)
 	);
 
 	// grab sub obj from server data
 	const getSub = (id: string) => {
-		const [obj] = serverSubs.filter((sub) => sub.id === id);
+		const [obj] = serverSubs.filter((sub: Feed) => sub.id === id);
 		return obj;
 	};
 
 	const addSub = async () => {
 		// validate required fields
-		const requiredFields = ['url', 'website', 'webhook', 'name'];
-		const missingFields = requiredFields.filter(field => !newSub[field] || newSub[field].trim() === '');
+		const requiredFields: (keyof Feed)[] = ['url', 'website', 'webhook', 'name'];
+		const missingFields = requiredFields.filter((field) => {
+			const value = newSub[field];
+			return !value || (typeof value === 'string' && value.trim() === '');
+		});
 
 		if (missingFields.length > 0) {
 			// Use browser's native form validation instead of alert
@@ -48,11 +53,9 @@
 
 		// prepare updated data
 		let updatedSubs;
-		if (subToSave.id && serverSubs.some(sub => sub.id === subToSave.id)) {
+		if (subToSave.id && serverSubs.some((sub: Feed) => sub.id === subToSave.id)) {
 			// update existing subscription
-			updatedSubs = serverSubs.map(sub =>
-				sub.id === subToSave.id ? subToSave : sub
-			);
+			updatedSubs = serverSubs.map((sub: Feed) => (sub.id === subToSave.id ? subToSave : sub));
 		} else {
 			// add new subscription
 			if (!subToSave.id) {
@@ -137,9 +140,7 @@
 	};
 
 	// reactive validation using Svelte 5 $derived
-	let isFormValid = $derived(
-		newSub.url && newSub.website && newSub.webhook && newSub.name
-	);
+	let isFormValid = $derived(newSub.url && newSub.website && newSub.webhook && newSub.name);
 
 	// export OPML file
 	const exportOPML = () => {
@@ -268,7 +269,6 @@ ${$subscriptions
 						<input
 							type="text"
 							bind:value={newSub.author}
-							onblur={() => (newSub.author = cleanDiscordIds(newSub.author))}
 							name="author"
 							id="author"
 							placeholder="Discord User ID(s) separated by commas (e.g. 123456789,987654321)"
@@ -315,7 +315,12 @@ ${$subscriptions
 					<div class="mt-2 flex items-center gap-2">
 						<label class="relative inline-flex items-center mb-5 cursor-pointer"
 							><input type="hidden" bind:value={newSub.id} />
-							<input type="checkbox" bind:checked={newSub.status} id="active" class="sr-only peer" />
+							<input
+								type="checkbox"
+								bind:checked={newSub.status}
+								id="active"
+								class="sr-only peer"
+							/>
 							<div
 								class="w-11 h-6 bg-gray-100 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-300 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after::bg-orange-300 after:w-5 after:h-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-300"
 							></div></label
@@ -332,8 +337,7 @@ ${$subscriptions
 							disabled={!isFormValid}
 							class="rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {isFormValid
 								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
-								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-							>Save</button
+								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}">Save</button
 						>
 						<button
 							type="button"
