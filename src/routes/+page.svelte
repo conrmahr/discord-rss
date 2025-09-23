@@ -22,12 +22,22 @@
 		// check if editing item and delete it
 		if (newSub.id) deleteSub(newSub.id);
 
-		// convert datetime-local input back to UTC before saving
+		// combine separate date and time fields into UTC datetime
 		const subToSave = { ...newSub };
-		if (subToSave.updated) {
-			// Treat input as UTC time and convert to ISO string
-			subToSave.updated = new Date(subToSave.updated + 'Z').toISOString();
+		if (subToSave.updatedDate && subToSave.updatedTime) {
+			// Combine date and time as UTC
+			subToSave.updated = new Date(
+				`${subToSave.updatedDate}T${subToSave.updatedTime}Z`
+			).toISOString();
+		} else if (subToSave.updatedDate) {
+			// Date only, set time to 00:00:00 UTC
+			subToSave.updated = new Date(`${subToSave.updatedDate}T00:00:00Z`).toISOString();
+		} else {
+			subToSave.updated = '';
 		}
+		// Remove temporary fields
+		delete subToSave.updatedDate;
+		delete subToSave.updatedTime;
 
 		// add the new sub directly to the store
 		$subscriptions = [...$subscriptions, subToSave];
@@ -67,11 +77,14 @@
 		// get item from store and set the fill the fields
 		const currentSub = getSub(id);
 		newSub = { ...currentSub };
-		// convert UTC datetime to datetime-local format (keeping UTC)
+		// split UTC datetime into separate date and time fields
 		if (newSub.updated) {
 			const date = new Date(newSub.updated);
-			// Display UTC time directly without timezone conversion
-			newSub.updated = date.toISOString().slice(0, 16);
+			newSub.updatedDate = date.toISOString().slice(0, 10); // YYYY-MM-DD
+			newSub.updatedTime = date.toISOString().slice(11, 19); // HH:MM:SS
+		} else {
+			newSub.updatedDate = '';
+			newSub.updatedTime = '';
 		}
 	};
 
@@ -127,7 +140,7 @@ ${$subscriptions
 <!-- check if user is logged -->
 {#if page.data.session}
 	<div class="mx-auto max-w-full lg:px-8">
-		<div class="border-b border-gray-900/10 pb-12">
+		<div class="pb-12">
 			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
 				<div class="sm:col-span-2">
 					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
@@ -194,7 +207,7 @@ ${$subscriptions
 						/>
 					</div>
 				</div>
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
 						>Feed Name</label
 					>
@@ -211,7 +224,7 @@ ${$subscriptions
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="author" class="block text-sm font-medium leading-6 text-gray-900"
 						>Author</label
 					>
@@ -228,16 +241,32 @@ ${$subscriptions
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
 						>Last Updated (UTC)</label
 					>
-					<div class="mt-2">
+					<div class="mt-2 flex gap-2">
 						<input
-							type="datetime-local"
-							bind:value={newSub.updated}
-							id="updated"
-							name="updated"
+							type="date"
+							bind:value={newSub.updatedDate}
+							id="updated-date"
+							name="updated-date"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
+				</div>
+
+				<div class="sm:col-span-2">
+					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
+						>Last Updated (UTC)</label
+					>
+					<div class="mt-2 flex gap-2">
+						<input
+							type="time"
+							bind:value={newSub.updatedTime}
+							step="1"
+							id="updated-time"
+							name="updated-time"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
@@ -245,48 +274,44 @@ ${$subscriptions
 
 				<div class="sm:col-span-1">
 					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
-						>Active</label
+						>Enabled</label
 					>
-					<div class="mt-2">
-						<label class="relative inline-flex items-center mb-5 cursor-pointer">
-							<input type="hidden" bind:value={newSub.id} />
-							<input
-								type="checkbox"
-								bind:checked={newSub.status}
-								id="active"
-								class="sr-only peer"
-							/>
+					<div class="mt-2 flex items-center gap-2">
+						<label class="relative inline-flex items-center mb-5 cursor-pointer"
+							><input type="hidden" bind:value={newSub.id} />
+							<input type="checkbox" id="active" class="sr-only peer" />
 							<div
 								class="w-11 h-6 bg-gray-100 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-300 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after::bg-orange-300 after:w-5 after:h-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-300"
-							></div>
-						</label>
+							></div></label
+						>
+					</div>
+				</div>
+
+				<div class="sm:col-span-6">
+					<div class="mt-2 flex items-center justify-end gap-2">
+						<button
+							type="submit"
+							onclick={addSub}
+							id="add"
+							class="rounded-md bg-orange-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+							>Save</button
+						>
+						<button
+							type="button"
+							onclick={exportOPML}
+							class="rounded-md bg-gray-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
+							>Export</button
+						>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 	<div class="mx-auto max-w-full lg:px-8">
-		<div class="mt-6 flex items-center justify-end gap-x-6">
-			<button
-				type="submit"
-				onclick={addSub}
-				id="add"
-				class="rounded-md bg-orange-400 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
-				>Save</button
-			>
-		</div>
 		<div class="sm:flex sm:items-center">
 			<div class="sm:flex-auto">
 				<h1 class="text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
 				<p class="mt-2 text-sm text-gray-700">A list of all the RSS Feed subscriptions.</p>
-			</div>
-			<div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-				<button
-					type="button"
-					onclick={exportOPML}
-					class="block rounded-md bg-orange-400 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-orange-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
-					>Export OPML</button
-				>
 			</div>
 		</div>
 		<div class="mt-8 flow-root">
@@ -369,7 +394,7 @@ ${$subscriptions
 										>
 									</td>
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500"
-										><code>{sub.updated}</code>
+										><code>{sub.updated.length > 0 ? sub.updated : 'Pending'}</code>
 									</td>
 									<td
 										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"
