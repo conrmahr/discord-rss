@@ -5,17 +5,17 @@
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
 
-	// grab current subs on load
-	$subscriptions = page.data.get;
+	// use server data directly, keep store for API calls only
+	let serverSubs = $derived(page.data.get || []);
 
 	// sort by most recent post
 	let sortedSubs = $derived(
-		$subscriptions.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
+		serverSubs.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
 	);
 
-	// grab sub obj out of store
+	// grab sub obj from server data
 	const getSub = (id: string) => {
-		const [obj] = $subscriptions.filter((sub) => sub.id === id);
+		const [obj] = serverSubs.filter((sub) => sub.id === id);
 		return obj;
 	};
 
@@ -37,10 +37,11 @@
 		delete subToSave.updatedDate;
 		delete subToSave.updatedTime;
 
-		// check if editing existing item or adding new one
-		if (subToSave.id && $subscriptions.some(sub => sub.id === subToSave.id)) {
+		// prepare updated data
+		let updatedSubs;
+		if (subToSave.id && serverSubs.some(sub => sub.id === subToSave.id)) {
 			// update existing subscription
-			$subscriptions = $subscriptions.map(sub =>
+			updatedSubs = serverSubs.map(sub =>
 				sub.id === subToSave.id ? subToSave : sub
 			);
 		} else {
@@ -48,17 +49,22 @@
 			if (!subToSave.id) {
 				subToSave.id = crypto.randomUUID();
 			}
-			$subscriptions = [...$subscriptions, subToSave];
+			updatedSubs = [...serverSubs, subToSave];
 		}
 
-		// post store to database
-		await fetch('/api', {
+		// post updated data to database
+		const response = await fetch('/api', {
 			method: 'POST',
-			body: JSON.stringify($subscriptions),
+			body: JSON.stringify(updatedSubs),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
+
+		if (response.ok) {
+			// reload page data to get fresh data from server
+			await invalidateAll();
+		}
 
 		// reset the local object & create a new one
 		newSub = subBuilder();
@@ -67,19 +73,22 @@
 	};
 
 	const deleteSub = async (id: string) => {
-		// filter out unique id and update store
-		subscriptions.update((subscriptions) =>
-			subscriptions.filter((sub: { id: string }) => sub.id !== id)
-		);
+		// filter out unique id from server data
+		const updatedSubs = serverSubs.filter((sub: { id: string }) => sub.id !== id);
 
-		// post store to database
-		await fetch('/api', {
+		// post updated data to database
+		const response = await fetch('/api', {
 			method: 'POST',
-			body: JSON.stringify($subscriptions),
+			body: JSON.stringify(updatedSubs),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
+
+		if (response.ok) {
+			// reload page data to get fresh data from server
+			await invalidateAll();
+		}
 	};
 
 	const editSub = (id: string) => {
