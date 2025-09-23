@@ -110,7 +110,20 @@ const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 	for (const post of posts) {
 		const feedText = feed.name ? `### ${feed.name}\n` : '';
 		const titleText = post.title ? `:newspaper: ${post.title}` : '';
-		const authorText = feed.author ? ` by <@${feed.author}>` : '';
+
+		// format multiple Discord IDs as mentions
+		let authorText = '';
+		if (feed.author) {
+			const discordIds = feed.author
+				.split(',')
+				.map((id) => id.trim())
+				.filter((id) => id);
+			if (discordIds.length > 0) {
+				const mentions = discordIds.map((id) => `<@${id}>`);
+				authorText = ` by ${mentions.join(' ')}`;
+			}
+		}
+
 		const linkText = `\n${post.url}`;
 		const content = feedText + titleText + authorText + linkText;
 

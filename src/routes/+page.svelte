@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
+	import { truncateURL, truncateString, extractChannel, cleanDiscordIds } from '$lib/helpers';
 	import { subscriptions } from '$lib/stores';
 	import type { Feed } from '../types';
 
@@ -262,15 +262,16 @@ ${$subscriptions
 
 				<div class="sm:col-span-2">
 					<label for="author" class="block text-sm font-medium leading-6 text-gray-900"
-						>Author</label
+						>Author(s)</label
 					>
 					<div class="mt-2">
 						<input
 							type="text"
 							bind:value={newSub.author}
+							onblur={() => (newSub.author = cleanDiscordIds(newSub.author))}
 							name="author"
 							id="author"
-							placeholder="Discord User ID"
+							placeholder="Discord User ID(s) separated by commas (e.g. 123456789,987654321)"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
 					</div>
