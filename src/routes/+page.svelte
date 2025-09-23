@@ -20,9 +20,6 @@
 	};
 
 	const addSub = async () => {
-		// check if editing item and delete it
-		if (newSub.id) deleteSub(newSub.id);
-
 		// combine separate date and time fields into UTC datetime
 		const subToSave = { ...newSub };
 		if (subToSave.updatedDate && subToSave.updatedTime) {
@@ -40,8 +37,19 @@
 		delete subToSave.updatedDate;
 		delete subToSave.updatedTime;
 
-		// add the new sub directly to the store
-		$subscriptions = [...$subscriptions, subToSave];
+		// check if editing existing item or adding new one
+		if (subToSave.id && $subscriptions.some(sub => sub.id === subToSave.id)) {
+			// update existing subscription
+			$subscriptions = $subscriptions.map(sub =>
+				sub.id === subToSave.id ? subToSave : sub
+			);
+		} else {
+			// add new subscription
+			if (!subToSave.id) {
+				subToSave.id = crypto.randomUUID();
+			}
+			$subscriptions = [...$subscriptions, subToSave];
+		}
 
 		// post store to database
 		await fetch('/api', {
