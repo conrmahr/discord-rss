@@ -8,6 +8,8 @@ export type Feed = {
 	author: string;
 	status: boolean;
 	updated: string;
+	updatedDate?: string;
+	updatedTime?: string;
 };
 
 export type DiscordPost = {
