@@ -25,6 +25,12 @@ export const truncateURL = (urlString: string) => {
 	return url.hostname;
 };
 
+// truncate date to minutes (strip seconds and milliseconds)
+export const toMinutes = (date: Date) => {
+	date.setSeconds(0, 0);
+	return date.getTime();
+};
+
 // helper function to clean and validate Discord IDs
 export const cleanDiscordIds = (input: string): string => {
 	if (!input) return '';

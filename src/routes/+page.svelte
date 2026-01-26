@@ -253,7 +253,7 @@
 
 				<div class="sm:col-span-2">
 					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Updated (UTC)</label
+						>Last Post</label
 					>
 					<div class="mt-2 flex gap-2">
 						<input
@@ -416,8 +416,24 @@
 											>{sub.status ? 'Active' : 'Not Active'}</span
 										>
 									</td>
-									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500"
-										><code>{sub.updated.length > 0 ? sub.updated : 'Pending'}</code>
+									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
+										<div class="text-gray-900">
+											{#if sub.lastPostedUrl}
+												<a href={sub.lastPostedUrl} title={sub.lastPostedUrl} target="_blank"
+													>{truncateString(sub.lastPostedUrl, 40)}</a
+												>
+											{:else}
+												<span>Pending</span>
+											{/if}
+										</div>
+										{#if sub.updated}
+											<div class="mt-1 text-gray-500">
+												<span
+													class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
+													>{sub.updated}</span
+												>
+											</div>
+										{/if}
 									</td>
 									<td
 										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"
