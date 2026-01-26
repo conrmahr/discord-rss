@@ -49,7 +49,7 @@ export const handleFeeds = async () => {
 					.filter(
 						(item) =>
 							toMinutes(new Date(item.isoDate!)) <= toMinutes(new Date()) && // isoDate must not be in the future
-							toMinutes(new Date(item.isoDate!)) >= toMinutes(new Date(subs[i].updated)) // isoDate must be on or after last updated
+							new Date(item.isoDate!).getTime() > new Date(subs[i].updated).getTime() // isoDate must be after last updated
 					)
 					.filter((item) => !subs[i].lastPostedUrl || item.link !== subs[i].lastPostedUrl); // deduplicate by link
 				// check for posts
