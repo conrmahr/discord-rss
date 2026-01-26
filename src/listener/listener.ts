@@ -1,6 +1,6 @@
 import Parser from 'rss-parser';
 import { get, set } from '../lib/redis/index.js';
-import { truncateString } from '../lib/helpers.js';
+import { toMinutes, truncateString } from '../lib/helpers.js';
 import type { DiscordPost, Feed } from '../types.js';
 
 const parser = new Parser();
@@ -30,57 +30,66 @@ export const handleFeeds = async () => {
 				continue;
 			}
 
-			const feed = await parser.parseURL(subs[i].url); // fetch feed url
-			feed.items.sort((a, b) => new Date(a.isoDate!).getTime() - new Date(b.isoDate!).getTime()); // sort oldest post to newest
+			try {
+				const feed = await parser.parseURL(subs[i].url); // fetch feed url
+				feed.items.sort((a, b) => new Date(a.isoDate!).getTime() - new Date(b.isoDate!).getTime()); // sort oldest post to newest
 
-			// if updated is blank, set it to last feed and skip
-			if (!Number.isInteger(Date.parse(subs[i].updated))) {
-				const lastUpdated = feed.items.length ? feed.items[feed.items.length - 1].isoDate : '';
-				subs[i].updated = lastUpdated;
-				console.log(`	*️⃣ first check\n`);
-				continue;
-			}
+				// if updated is blank, set it to last feed and skip
+				if (!Number.isInteger(Date.parse(subs[i].updated))) {
+					const lastItem = feed.items.length ? feed.items[feed.items.length - 1] : null;
+					subs[i].updated = lastItem?.isoDate ?? '';
+					subs[i].lastPostedUrl = lastItem?.link ?? '';
+					console.log(`	*️⃣ first check\n`);
+					continue;
+				}
 
-			// filter posts
-			const items = feed.items
-				.filter((item) => item.isoDate) // check for isoDate set
-				.filter(
-					(item) =>
-						new Date(item.isoDate!).getTime() < new Date().getTime() && // isoDate must be less than current date/time
-						new Date(item.isoDate!).getTime() > new Date(subs[i].updated).getTime() // isoDate msut be greater than last updated
-				);
-			// check for posts
-			if (items.length > 0) {
-				console.log(`	🎉 ${items.length} new post(s) found!\n`);
-				let posts: DiscordPost[] = [];
-				// loop through posts
-				for (const item of items) {
-					try {
-						subs[i].updated = item.isoDate; // set updated to feed isoDate
-						// set post meta
-						const post: DiscordPost = {
-							name: subs[i].name,
-							title: truncateString(item.title ?? '', 250),
-							url: item.link!
-						};
-						posts.push(post); // store meta in array
-						// send to webhook if it hits 10 posts
-						if (posts.length === 10) {
-							await executeHook(subs[i], posts);
-							posts = [];
+				// filter posts
+				const items = feed.items
+					.filter((item) => item.isoDate) // check for isoDate set
+					.filter(
+						(item) =>
+							toMinutes(new Date(item.isoDate!)) <= toMinutes(new Date()) && // isoDate must not be in the future
+							new Date(item.isoDate!).getTime() > new Date(subs[i].updated).getTime() // isoDate must be after last updated
+					)
+					.filter((item) => !subs[i].lastPostedUrl || item.link !== subs[i].lastPostedUrl); // deduplicate by link
+				// check for posts
+				if (items.length > 0) {
+					console.log(`	🎉 ${items.length} new post(s) found!\n`);
+					let posts: DiscordPost[] = [];
+					// loop through posts
+					for (const item of items) {
+						try {
+							subs[i].updated = item.isoDate; // set updated to feed isoDate
+							// set post meta
+							const post: DiscordPost = {
+								name: subs[i].name,
+								title: truncateString(item.title ?? '', 250),
+								url: item.link!
+							};
+							posts.push(post); // store meta in array
+							// send to webhook if it hits 10 posts
+							if (posts.length === 10) {
+								await executeHook(subs[i], posts);
+								posts = [];
+							}
+						} catch (e) {
+							console.error('🔴 error posting 10 to webhook', e);
 						}
-					} catch (e) {
-						console.error('🔴 error posting 10 to webhook', e);
 					}
-				}
-				// send to webhook
-				if (posts.length > 0) {
-					try {
-						await executeHook(subs[i], posts);
-					} catch (e) {
-						console.error('🔴 error posting to webhook', e);
+					// send to webhook
+					if (posts.length > 0) {
+						try {
+							await executeHook(subs[i], posts);
+						} catch (e) {
+							console.error('🔴 error posting to webhook', e);
+						}
 					}
+					// store last posted URL for deduplication on next run
+					subs[i].lastPostedUrl = items[items.length - 1].link;
 				}
+			} catch (e) {
+				console.error(`🔴 error fetching ${subs[i].name}`, e);
+				continue;
 			}
 		}
 	} catch (e) {

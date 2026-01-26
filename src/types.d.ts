@@ -10,6 +10,7 @@ export type Feed = {
 	updated: string;
 	updatedDate?: string;
 	updatedTime?: string;
+	lastPostedUrl?: string;
 };
 
 export type DiscordPost = {
