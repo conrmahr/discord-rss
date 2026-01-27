@@ -12,13 +12,15 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	],
 	// Workaround until id is properly typed and returned
 	callbacks: {
+		async jwt({ token, profile }) {
+			if (profile?.id) {
+				token.sub = String(profile.id);
+			}
+			return token;
+		},
 		async session({ session, token }) {
-			if (token) {
-				if (token?.picture?.includes('discord')) {
-					// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-					// @ts-expect-error
-					session.user.id = token.sub;
-				}
+			if (token?.sub) {
+				session.user.id = token.sub;
 			}
 			return session;
 		},
