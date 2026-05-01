@@ -12,29 +12,29 @@ importers:
         specifier: ^0.40.0
         version: 0.40.0
       '@auth/sveltekit':
-        specifier: ^1.11.1
+        specifier: ^1.11.2
         version: 1.11.2(@sveltejs/kit@2.58.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.55.5(@typescript-eslint/types@8.59.1))(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)))(svelte@5.55.5(@typescript-eslint/types@8.59.1))(typescript@5.9.3)(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)))(svelte@5.55.5(@typescript-eslint/types@8.59.1))
       '@tailwindcss/postcss':
-        specifier: ^4.1.18
+        specifier: ^4.2.4
         version: 4.2.4
       '@tailwindcss/vite':
-        specifier: ^4.1.18
+        specifier: ^4.2.4
         version: 4.2.4(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0))
       ioredis:
-        specifier: ^5.9.2
+        specifier: ^5.10.1
         version: 5.10.1
       rss-parser:
         specifier: ^3.13.0
         version: 3.13.0
     devDependencies:
       '@eslint/js':
-        specifier: ^9.39.2
+        specifier: ^9.39.4
         version: 9.39.4
       '@sveltejs/adapter-node':
-        specifier: ^5.5.2
+        specifier: ^5.5.4
         version: 5.5.4(@sveltejs/kit@2.58.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.55.5(@typescript-eslint/types@8.59.1))(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)))(svelte@5.55.5(@typescript-eslint/types@8.59.1))(typescript@5.9.3)(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)))
       '@sveltejs/kit':
-        specifier: ^2.50.1
+        specifier: ^2.58.0
         version: 2.58.0(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.55.5(@typescript-eslint/types@8.59.1))(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)))(svelte@5.55.5(@typescript-eslint/types@8.59.1))(typescript@5.9.3)(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0))
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.4
@@ -43,40 +43,40 @@ importers:
         specifier: ^0.5.11
         version: 0.5.11(tailwindcss@4.2.4)
       '@types/node':
-        specifier: ^24.10.9
+        specifier: ^24.12.2
         version: 24.12.2
       dotenv:
-        specifier: ^17.2.3
+        specifier: ^17.4.2
         version: 17.4.2
       eslint:
-        specifier: ^9.39.2
+        specifier: ^9.39.4
         version: 9.39.4(jiti@2.6.1)
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@9.39.4(jiti@2.6.1))
       eslint-plugin-svelte:
-        specifier: ^3.14.0
+        specifier: ^3.17.1
         version: 3.17.1(eslint@9.39.4(jiti@2.6.1))(svelte@5.55.5(@typescript-eslint/types@8.59.1))
       globals:
         specifier: ^16.5.0
         version: 16.5.0
       postcss:
-        specifier: ^8.5.6
+        specifier: ^8.5.12
         version: 8.5.12
       prettier:
-        specifier: ^3.8.1
+        specifier: ^3.8.3
         version: 3.8.3
       prettier-plugin-svelte:
-        specifier: ^3.4.1
+        specifier: ^3.5.1
         version: 3.5.1(prettier@3.8.3)(svelte@5.55.5(@typescript-eslint/types@8.59.1))
       svelte:
-        specifier: ^5.48.3
+        specifier: ^5.55.5
         version: 5.55.5(@typescript-eslint/types@8.59.1)
       svelte-check:
-        specifier: ^4.3.5
+        specifier: ^4.4.6
         version: 4.4.6(picomatch@4.0.4)(svelte@5.55.5(@typescript-eslint/types@8.59.1))(typescript@5.9.3)
       tailwindcss:
-        specifier: ^4.1.18
+        specifier: ^4.2.4
         version: 4.2.4
       tslib:
         specifier: ^2.8.1
@@ -85,10 +85,10 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       typescript-eslint:
-        specifier: ^8.54.0
+        specifier: ^8.59.1
         version: 8.59.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite:
-        specifier: ^7.3.1
+        specifier: ^7.3.2
         version: 7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)
 
 packages:
@@ -891,9 +891,6 @@ packages:
 
   devalue@5.7.1:
     resolution: {integrity: sha512-MUbZ586EgQqdRnC4yDrlod3BEdyvE4TapGYHMW2CiaW+KkkFmWEFqBUaLltEZCGi0iFXCEjRF0OjF0DV2QHjOA==}
-
-  devalue@5.8.0:
-    resolution: {integrity: sha512-2zA9pFEsnp7vWBZbXF5JAgAq0fsUIt/1XPbRiAmRV3lp/2C3upzH+sADiyy66aFCihoLEsrQHxNM5w1gIDfsBg==}
 
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
@@ -2213,8 +2210,6 @@ snapshots:
 
   devalue@5.7.1: {}
 
-  devalue@5.8.0: {}
-
   dotenv@17.4.2: {}
 
   enhanced-resolve@5.21.0:
@@ -2769,7 +2764,7 @@ snapshots:
       aria-query: 5.3.1
       axobject-query: 4.1.0
       clsx: 2.1.1
-      devalue: 5.8.0
+      devalue: 5.7.1
       esm-env: 1.2.2
       esrap: 2.2.5(@typescript-eslint/types@8.59.1)
       is-reference: 3.0.3
