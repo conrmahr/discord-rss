@@ -25,7 +25,7 @@ The service can be configured using environment variables:
 
 ### Railway
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/3li6Gg?referralCode=MlYK0h)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/deploy/GAjtJO?referralCode=MlYK0h&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 ## Screenshots
 
