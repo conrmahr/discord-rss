@@ -38,7 +38,6 @@ export const handleFeeds = async () => {
 				if (!Number.isInteger(Date.parse(subs[i].updated))) {
 					const lastItem = feed.items.length ? feed.items[feed.items.length - 1] : null;
 					subs[i].updated = lastItem?.isoDate ?? '';
-					subs[i].lastPostedUrl = lastItem?.link ?? '';
 					console.log(`	*️⃣ first check\n`);
 					continue;
 				}

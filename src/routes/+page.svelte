@@ -128,7 +128,8 @@
 		thumbnail: '',
 		author: '',
 		status: false,
-		updated: ''
+		updated: '',
+		lastPostedUrl: ''
 	});
 
 	// clone the default subscription
@@ -252,7 +253,7 @@
 				</div>
 
 				<div class="sm:col-span-2">
-					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
+					<label for="updated-date" class="block text-sm font-medium leading-6 text-gray-900"
 						>Last Post</label
 					>
 					<div class="mt-2 flex gap-2">
@@ -263,14 +264,6 @@
 							name="updated-date"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="updated" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Updated (UTC)</label
-					>
-					<div class="mt-2 flex gap-2">
 						<input
 							type="time"
 							bind:value={newSub.updatedTime}
@@ -282,7 +275,23 @@
 					</div>
 				</div>
 
-				<div class="sm:col-span-1">
+				<div class="sm:col-span-2">
+					<label for="lastPostedUrl" class="block text-sm font-medium leading-6 text-gray-900"
+						>Last Posted URL</label
+					>
+					<div class="mt-2">
+						<input
+							type="url"
+							bind:value={newSub.lastPostedUrl}
+							name="lastPostedUrl"
+							id="lastPostedUrl"
+							placeholder="https://domain.com/post/slug"
+							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+						/>
+					</div>
+				</div>
+
+				<div class="sm:col-span-2">
 					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
 						>Enabled</label
 					>
