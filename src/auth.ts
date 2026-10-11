@@ -7,7 +7,10 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	providers: [
 		Discord({
 			clientId: env.AUTH_DISCORD_CLIENT_ID,
-			clientSecret: env.AUTH_DISCORD_CLIENT_SECRET
+			clientSecret: env.AUTH_DISCORD_CLIENT_SECRET,
+			// Discord now returns `iss` on the OAuth callback (RFC 9207); without this,
+			// Auth.js compares it against its https://authjs.dev placeholder and rejects it
+			issuer: 'https://discord.com'
 		})
 	],
 	// Workaround until id is properly typed and returned
