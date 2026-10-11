@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { set } from '$lib/redis/';
-import { DATABASE_NAME, DISCORD_AUTHORIZED_USERS } from '$env/static/private';
+import { isAuthorized } from '$lib/server/authorized';
+import { DATABASE_NAME } from '$env/static/private';
 import type { Feed } from '../../types';
 
 // validate that the payload is an array of feed objects
@@ -27,8 +28,7 @@ export const POST = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const approved = DISCORD_AUTHORIZED_USERS?.split(',').map((id) => id.trim()) || [];
-	if (!approved.includes(session.user.id)) {
+	if (!isAuthorized(session.user.id)) {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 

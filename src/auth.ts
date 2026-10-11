@@ -1,6 +1,7 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Discord from '@auth/sveltekit/providers/discord';
 import { env } from '$env/dynamic/private';
+import { getAuthorizedUsers } from '$lib/server/authorized';
 
 export const { handle, signIn, signOut } = SvelteKitAuth({
 	trustHost: true,
@@ -28,10 +29,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 			return session;
 		},
 		async signIn({ profile }) {
-			const approved: string[] =
-				env.DISCORD_AUTHORIZED_USERS?.split(',')
-					.map((id) => id.trim())
-					.filter(Boolean) || [];
+			const approved = getAuthorizedUsers();
 			if (!approved || !approved.length) {
 				console.error('No approved users found in env file.');
 				return false; // Return false to display a default error message
