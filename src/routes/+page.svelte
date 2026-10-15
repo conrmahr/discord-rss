@@ -107,14 +107,56 @@
 		// get item from store and set the fill the fields
 		const currentSub = getSub(id);
 		newSub = { ...currentSub };
-		// split UTC datetime into separate date and time fields
-		if (newSub.updated) {
-			const date = new Date(newSub.updated);
+		setUpdatedFields(newSub.updated);
+	};
+
+	// split UTC datetime into separate date and time fields
+	const setUpdatedFields = (updated: string) => {
+		if (updated) {
+			const date = new Date(updated);
 			newSub.updatedDate = date.toISOString().slice(0, 10); // YYYY-MM-DD
 			newSub.updatedTime = date.toISOString().slice(11, 19); // HH:MM:SS
 		} else {
 			newSub.updatedDate = '';
 			newSub.updatedTime = '';
+		}
+	};
+
+	let discovering = $state(false);
+	let discoverError = $state('');
+
+	// read the feed url on the server and fill in any form fields that are still empty
+	const discoverFeed = async () => {
+		discoverError = '';
+		discovering = true;
+		try {
+			const response = await fetch('/api/discover', {
+				method: 'POST',
+				body: JSON.stringify({ url: newSub.url }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const result = await response.json();
+			if (!response.ok) {
+				discoverError = result.error ?? 'Discovery failed';
+				return;
+			}
+			newSub.name ||= result.name;
+			newSub.website ||= result.website;
+			newSub.thumbnail ||= result.thumbnail;
+			newSub.lastPostedUrl ||= result.lastPostedUrl;
+			if (!newSub.updatedDate && !newSub.updatedTime) {
+				setUpdatedFields(result.updated);
+			}
+			// enable new feeds; leave an existing feed's setting alone
+			if (!serverSubs.some((sub: Feed) => sub.id === newSub.id)) {
+				newSub.status = true;
+			}
+		} catch {
+			discoverError = 'Discovery failed';
+		} finally {
+			discovering = false;
 		}
 	};
 
@@ -188,7 +230,7 @@
 				<div class="sm:col-span-2">
 					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
 					>
-					<div class="mt-2">
+					<div class="mt-2 flex gap-2">
 						<input
 							type="url"
 							required
@@ -198,7 +240,21 @@
 							placeholder="https://domain.com/feed.xml"
 							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
 						/>
+						<button
+							type="button"
+							onclick={discoverFeed}
+							disabled={!newSub.url || discovering}
+							title="Fill empty fields from the feed"
+							class="shrink-0 rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {newSub.url &&
+							!discovering
+								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
+								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+							>{discovering ? 'Discovering…' : 'Discover'}</button
+						>
 					</div>
+					{#if discoverError}
+						<p class="mt-1 text-sm text-red-600">{discoverError}</p>
+					{/if}
 				</div>
 
 				<div class="sm:col-span-2">
