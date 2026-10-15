@@ -14,7 +14,6 @@ const isValidFeedArray = (data: unknown): data is Feed[] => {
 			typeof item.id === 'string' &&
 			typeof item.url === 'string' &&
 			typeof item.website === 'string' &&
-			typeof item.webhook === 'string' &&
 			typeof item.name === 'string' &&
 			typeof item.status === 'boolean'
 	);
@@ -36,6 +35,11 @@ export const POST = async ({ request, locals }) => {
 
 	if (!isValidFeedArray(data)) {
 		return json({ error: 'Invalid feed data' }, { status: 400 });
+	}
+
+	// drop per-feed webhooks left over from v1, the webhook now lives in DISCORD_WEBHOOK_URL
+	for (const feed of data) {
+		delete (feed as Feed & { webhook?: string }).webhook;
 	}
 
 	const response = await set(DATABASE_NAME!, data);

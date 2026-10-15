@@ -1,6 +1,8 @@
 import { get } from '$lib/redis/get';
+import { extractChannel } from '$lib/helpers';
 import { isAuthorized } from '$lib/server/authorized';
 import { DATABASE_NAME } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 import type { LayoutServerLoad } from './$types';
 
@@ -15,12 +17,16 @@ const getFeeds = async () => {
 };
 
 // past current feeds to session
-// feeds (including webhook tokens) are only sent to authorized users; anything returned
-// here is serialized into the page HTML and /__data.json regardless of what renders
+// feeds are only sent to authorized users; anything returned here is serialized
+// into the page HTML and /__data.json regardless of what renders
 export const load: LayoutServerLoad = async (event) => {
 	const session = await event.locals.auth();
+	const authorized = isAuthorized(session?.user?.id);
 	return {
 		session: session,
-		get: isAuthorized(session?.user?.id) ? await getFeeds() : []
+		get: authorized ? await getFeeds() : [],
+		// only the webhook id, never the full url (it contains the token)
+		webhookId:
+			authorized && env.DISCORD_WEBHOOK_URL ? extractChannel(env.DISCORD_WEBHOOK_URL) : null
 	};
 };

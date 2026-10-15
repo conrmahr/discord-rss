@@ -16,12 +16,18 @@ The service can be configured using environment variables:
 
 - `INTERVAL` (default 15) minutes between checks
 - `REDIS_URL` (required) redis connect url
+- `DATABASE_NAME` (required) redis key the feed list is stored under
+- `DISCORD_WEBHOOK_URL` (required) Discord webhook every feed posts to, e.g. `https://discord.com/api/webhooks/id/token`
 - `AUTH_SECRET` (required) random generated secret
 - `AUTH_TRUST_HOST` (required) boolean
 - `AUTH_DISCORD_CLIENT_ID` (required) https://discord.com/developers/applications
   - Make sure to add `http://localhost:5173/auth/callback/discord`, or the production equivalant, to your OAuth2 redirects section.
 - `AUTH_DISCORD_CLIENT_SECRET` (required) https://discord.com/developers/applications
 - `DISCORD_AUTHORIZED_USERS` (required) comma-separated list of Discord user IDs for users allowed to access and modify the configuration
+
+### Upgrading to v2
+
+v2 posts every feed to one webhook instead of a webhook per feed. Set `DISCORD_WEBHOOK_URL` for both the web interface and the runner before deploying; the runner will not start without it. Webhook URLs saved on existing feeds are ignored and removed the next time you save from the web interface.
 
 ### Railway
 

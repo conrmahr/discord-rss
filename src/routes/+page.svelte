@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
-	import { truncateURL, truncateString, extractChannel } from '$lib/helpers';
+	import { truncateString } from '$lib/helpers';
 	import { exportOPML } from '$lib/export';
 	import type { Feed } from '../types';
 
@@ -23,7 +23,7 @@
 
 	const addSub = async () => {
 		// validate required fields
-		const requiredFields: (keyof Feed)[] = ['url', 'website', 'webhook', 'name'];
+		const requiredFields: (keyof Feed)[] = ['url', 'website', 'name'];
 		const missingFields = requiredFields.filter((field) => {
 			const value = newSub[field];
 			return !value || (typeof value === 'string' && value.trim() === '');
@@ -124,7 +124,6 @@
 		url: '',
 		website: '',
 		name: '',
-		webhook: '',
 		thumbnail: '',
 		author: '',
 		status: false,
@@ -141,7 +140,7 @@
 	};
 
 	// reactive validation using Svelte 5 $derived
-	let isFormValid = $derived(newSub.url && newSub.website && newSub.webhook && newSub.name);
+	let isFormValid = $derived(newSub.url && newSub.website && newSub.name);
 
 	// export OPML file
 	const handleExportOPML = () => {
@@ -188,22 +187,6 @@
 					</div>
 				</div>
 
-				<div class="sm:col-span-2">
-					<label for="webhook" class="block text-sm font-medium leading-6 text-gray-900"
-						>Webhook URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.webhook}
-							name="webhook"
-							id="webhook"
-							placeholder="https://discord.com/api/webhooks/id/token"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
 				<div class="sm:col-span-2">
 					<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
 						>Thumbnail URL</label
@@ -343,7 +326,21 @@
 		<div class="sm:flex sm:items-center">
 			<div class="sm:flex-auto">
 				<h1 class="text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
-				<p class="mt-2 text-sm text-gray-700">A list of all the RSS Feed subscriptions.</p>
+				<p class="mt-2 text-sm text-gray-700">
+					A list of all the RSS Feed subscriptions.
+					{#if page.data.webhookId}
+						Posting to webhook
+						<span
+							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
+							>{page.data.webhookId}</span
+						>
+					{:else}
+						<span
+							class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"
+							>DISCORD_WEBHOOK_URL is not set</span
+						>
+					{/if}
+				</p>
 			</div>
 		</div>
 		<div class="mt-8 flow-root">
@@ -404,16 +401,6 @@
 										<div class="text-gray-900">
 											<a href={sub.url} title={sub.name} target="_blank"
 												>{truncateString(sub.url, 40)}</a
-											>
-										</div>
-										<div class="mt-1 text-gray-500">
-											<span
-												class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
-												>{truncateURL(sub.webhook)}</span
-											>
-											<span
-												class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
-												>{extractChannel(sub.webhook)}</span
 											>
 										</div>
 									</td>

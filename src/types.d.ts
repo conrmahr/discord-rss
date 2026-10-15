@@ -2,7 +2,6 @@ export type Feed = {
 	id: string;
 	url: string;
 	website: string;
-	webhook: string;
 	name: string;
 	thumbnail: string;
 	author: string;

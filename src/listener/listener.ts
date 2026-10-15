@@ -101,19 +101,35 @@ export const handleFeeds = async () => {
 	}
 };
 
-const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
-	// post to discord api
-	const response = async (url = '', data = {}) => {
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				'Content-type': 'application/json;'
-			},
-			body: JSON.stringify(data)
-		});
+const MAX_RETRIES = 3;
 
-		return response.json();
-	};
+// post to discord webhook, waiting and retrying when rate limited
+const postToWebhook = async (data = {}, attempt = 1): Promise<{ content?: string }> => {
+	const response = await fetch(`${process.env.DISCORD_WEBHOOK_URL}?wait=true`, {
+		method: 'POST',
+		headers: {
+			'Content-type': 'application/json;'
+		},
+		body: JSON.stringify(data)
+	});
+
+	// all feeds share one webhook, so a busy run can hit discord's per-webhook rate limit
+	if (response.status === 429 && attempt <= MAX_RETRIES) {
+		const { retry_after } = await response.json(); // seconds
+		const wait = Math.ceil((retry_after ?? 1) * 1000);
+		console.log(`	⏳ rate limited, retrying in ${wait}ms (attempt ${attempt}/${MAX_RETRIES})\n`);
+		await new Promise((resolve) => setTimeout(resolve, wait));
+		return postToWebhook(data, attempt + 1);
+	}
+
+	if (!response.ok) {
+		throw new Error(`webhook responded ${response.status}: ${await response.text()}`);
+	}
+
+	return response.json();
+};
+
+const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 	// loop through post meta and format for webhook
 	for (const post of posts) {
 		const feedText = feed.name ? `### ${feed.name}\n` : '';
@@ -135,7 +151,7 @@ const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 		const linkText = `\n${post.url}`;
 		const content = feedText + titleText + authorText + linkText;
 
-		await response(`${feed.webhook}?wait=true`, { content: content })
+		await postToWebhook({ content: content })
 			.then((json) => {
 				console.log(`📬 successfully posted:\n ${json.content}\n`); // handle success
 			})
