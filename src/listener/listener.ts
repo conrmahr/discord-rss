@@ -32,6 +32,7 @@ export const handleFeeds = async () => {
 
 			try {
 				const feed = await parser.parseURL(subs[i].url); // fetch feed url
+				subs[i].lastStatus = 200; // parseURL only resolves on a status below 300
 				feed.items.sort((a, b) => new Date(a.isoDate!).getTime() - new Date(b.isoDate!).getTime()); // sort oldest post to newest
 
 				// if updated is blank, set it to last feed and skip
@@ -87,6 +88,9 @@ export const handleFeeds = async () => {
 					subs[i].lastPostedUrl = items[items.length - 1].link;
 				}
 			} catch (e) {
+				// rss-parser rejects non-2xx responses with "Status code <n>"
+				const match = /^Status code (\d+)$/.exec((e as Error).message);
+				subs[i].lastStatus = match ? Number(match[1]) : 0; // 0 = network error, timeout or bad xml
 				console.error(`🔴 error fetching ${subs[i].name}`, e);
 				continue;
 			}

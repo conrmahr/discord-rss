@@ -142,6 +142,37 @@
 	// reactive validation using Svelte 5 $derived
 	let isFormValid = $derived(newSub.url && newSub.website && newSub.name);
 
+	// countdown to the next poll; the server sends ms remaining, so the deadline uses the client clock
+	let now = $state(Date.now());
+	let pollDeadline = $derived(
+		typeof page.data.nextPollIn === 'number' ? Date.now() + page.data.nextPollIn : null
+	);
+	let pollRemaining = $derived(pollDeadline === null ? null : Math.max(0, pollDeadline - now));
+	let checkingFeeds = $derived(page.data.polling || pollRemaining === 0);
+
+	$effect(() => {
+		const timer = setInterval(() => (now = Date.now()), 1000);
+		return () => clearInterval(timer);
+	});
+
+	// while a poll is due or running, reload data every 5s to pick up the new statuses and next poll
+	$effect(() => {
+		if (!checkingFeeds) return;
+		const timer = setInterval(() => invalidateAll(), 5000);
+		return () => clearInterval(timer);
+	});
+
+	// format ms as m:ss, or h:mm:ss for long intervals
+	const formatCountdown = (ms: number) => {
+		const total = Math.ceil(ms / 1000);
+		const hours = Math.floor(total / 3600);
+		const minutes = Math.floor((total % 3600) / 60);
+		const seconds = String(total % 60).padStart(2, '0');
+		return hours
+			? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}`
+			: `${minutes}:${seconds}`;
+	};
+
 	// export OPML file
 	const handleExportOPML = () => {
 		if (!page.data.session) return;
@@ -340,6 +371,23 @@
 							>DISCORD_WEBHOOK_URL is not set</span
 						>
 					{/if}
+					{#if pollRemaining === null}
+						<span
+							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
+							>Runner off</span
+						>
+					{:else if checkingFeeds}
+						<span
+							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
+							>Checking feeds…</span
+						>
+					{:else}
+						Next check in
+						<span
+							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium tabular-nums text-gray-700 ring-1 ring-inset ring-gray-600/20"
+							>{formatCountdown(pollRemaining)}</span
+						>
+					{/if}
 				</p>
 			</div>
 		</div>
@@ -407,10 +455,20 @@
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
 										<span
 											class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {sub.status
-												? `bg-green-50 text-green-700 ring-green-600/20`
-												: `bg-red-50 text-red-700 ring-red-600/20`}"
-											>{sub.status ? 'Active' : 'Not Active'}</span
+												? `bg-orange-50 text-orange-700 ring-orange-600/20`
+												: `bg-gray-50 text-gray-600 ring-gray-500/20`}"
+											>{sub.status ? 'Enabled' : 'Disabled'}</span
 										>
+										{#if sub.status && sub.lastStatus !== undefined}
+											<span
+												title="HTTP status from the last feed check"
+												class="ml-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {sub.lastStatus ===
+												200
+													? `bg-green-50 text-green-700 ring-green-600/20`
+													: `bg-red-50 text-red-700 ring-red-600/20`}"
+												>{sub.lastStatus || 'Error'}</span
+											>
+										{/if}
 									</td>
 									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
 										<div class="text-gray-900">

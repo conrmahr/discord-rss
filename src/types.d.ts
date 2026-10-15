@@ -10,6 +10,7 @@ export type Feed = {
 	updatedDate?: string;
 	updatedTime?: string;
 	lastPostedUrl?: string;
+	lastStatus?: number; // http status of the last feed fetch, 0 for network error, timeout or bad xml
 };
 
 export type DiscordPost = {

@@ -5,10 +5,16 @@ import { set } from '$lib/redis';
 
 const MINUTE = 60 * 1000;
 
-// the poller runs inside the web server; keep its timer on globalThis so a dev
+type RunnerState = {
+	timer: ReturnType<typeof setInterval>;
+	nextPollAt: number; // epoch ms of the next scheduled handleFeeds call
+	polling: boolean; // a handleFeeds call is in progress
+};
+
+// the poller runs inside the web server; keep its state on globalThis so a dev
 // hot reload of this module replaces the old interval instead of adding another
 declare global {
-	var discordRssRunner: ReturnType<typeof setInterval> | undefined;
+	var discordRssRunner: RunnerState | undefined;
 }
 
 // on by default in production, off by default in dev so `pnpm dev` doesn't post to discord
@@ -18,9 +24,15 @@ const isEnabled = () => {
 	return !dev;
 };
 
+// next poll time (null if the runner isn't running) and whether a poll is in progress
+export const getRunnerStatus = () => ({
+	nextPollAt: globalThis.discordRssRunner?.nextPollAt ?? null,
+	polling: globalThis.discordRssRunner?.polling ?? false
+});
+
 export const startRunner = async () => {
 	if (globalThis.discordRssRunner) {
-		clearInterval(globalThis.discordRssRunner);
+		clearInterval(globalThis.discordRssRunner.timer);
 		globalThis.discordRssRunner = undefined;
 	}
 
@@ -38,6 +50,16 @@ export const startRunner = async () => {
 	await set('processing', false);
 
 	const interval = env.INTERVAL ? parseInt(env.INTERVAL) * MINUTE : 15 * MINUTE;
-	globalThis.discordRssRunner = setInterval(handleFeeds, interval); // set delay and run listener
+	const state: RunnerState = {
+		nextPollAt: Date.now() + interval,
+		polling: false,
+		// set delay and run listener
+		timer: setInterval(() => {
+			state.nextPollAt = Date.now() + interval;
+			state.polling = true;
+			handleFeeds().finally(() => (state.polling = false));
+		}, interval)
+	};
+	globalThis.discordRssRunner = state;
 	console.log(`▶️ runner started, checking feeds every ${interval / MINUTE} minute(s)`);
 };
