@@ -7,15 +7,15 @@ Self-hosted RSS feed fetching and posting to Discord webhooks with web a managem
 ### Development
 
 - Install Node >=22 and pnpm, and run `pnpm install`.
-- Run `pnpm run check` and `pnpm run dev`. The RSS poller runs inside the web server, but is off in dev so you don't post to Discord by accident; set `RUNNER_ENABLED=true` to turn it on.
+- Run `pnpm run check` and `pnpm run dev`. The RSS poller runs inside the web server and follows the same rules as production, so use a test channel's webhook in your local `.env`.
 - For production run `pnpm run build` and `pnpm run start`.
 
 ### Configuration
 
 The service can be configured using environment variables. Missing required ones are listed in the server log at startup:
 
-- `INTERVAL` (optional) minutes between checks. If set, it overrides the web interface's interval; otherwise the interval is set in the web interface (default 15)
-- `RUNNER_ENABLED` (optional) `true` or `false` forces the runner on or off and overrides the web interface's Pause/Resume. If unset, Pause/Resume decides (except in `pnpm dev`, where it stays off)
+- `INTERVAL` (optional) minutes between checks, 1–1440. If set, it overrides the web interface's interval; leave it out or commented out to set the interval in the web interface (default 15)
+- `RUNNER_ENABLED` (optional) `true` or `false` forces the runner on or off and overrides the web interface's Pause/Resume. Leave it out or commented out to let Pause/Resume decide
 - `REDIS_URL` (required) redis connect url
 - `DATABASE_NAME` (required) prefix for this app's redis keys, so several environments can share one redis
 - `DISCORD_WEBHOOK_URL` (required to post) Discord webhook every feed posts to, e.g. `https://discord.com/api/webhooks/id/token`. Without it the web interface still works, but the runner stays off
@@ -27,7 +27,7 @@ The service can be configured using environment variables. Missing required ones
 
 ### Starting the runner
 
-A new install starts **paused**, so nothing posts until you're ready: set the interval in the web interface and click **Resume**. Environment variables win over the web interface when they're set: `INTERVAL` fixes the interval and `RUNNER_ENABLED` forces the runner on or off.
+A new install starts **paused**, so nothing posts until you're ready: set the interval in the web interface and click **Resume**. Environment variables win over the web interface when they're set: `INTERVAL` fixes the interval and `RUNNER_ENABLED` forces the runner on or off. To leave a setting to the web interface, leave the variable out or comment it out; a blank or invalid value is ignored and logged as an error at startup.
 
 ### Moving between environments
 
