@@ -107,15 +107,30 @@ export const handleFeeds = async () => {
 
 const MAX_RETRIES = 3;
 
+// fetch errors can include the url (e.g. "Failed to parse URL from …" for a malformed
+// DISCORD_WEBHOOK_URL); replace it so the webhook token never reaches the logs
+const withoutWebhookUrl = (error: unknown) => {
+	const url = process.env.DISCORD_WEBHOOK_URL;
+	const text = (e: unknown) => (e instanceof Error ? e.message : String(e));
+	const cause = error instanceof Error && error.cause ? ` (${text(error.cause)})` : '';
+	const message = text(error) + cause; // e.g. "fetch failed (getaddrinfo ENOTFOUND …)"
+	return new Error(url ? message.replaceAll(url, '<DISCORD_WEBHOOK_URL>') : message);
+};
+
 // post to discord webhook, waiting and retrying when rate limited
 const postToWebhook = async (data = {}, attempt = 1): Promise<{ content?: string }> => {
-	const response = await fetch(`${process.env.DISCORD_WEBHOOK_URL}?wait=true`, {
-		method: 'POST',
-		headers: {
-			'Content-type': 'application/json;'
-		},
-		body: JSON.stringify(data)
-	});
+	let response: Response;
+	try {
+		response = await fetch(`${process.env.DISCORD_WEBHOOK_URL}?wait=true`, {
+			method: 'POST',
+			headers: {
+				'Content-type': 'application/json;'
+			},
+			body: JSON.stringify(data)
+		});
+	} catch (error) {
+		throw withoutWebhookUrl(error);
+	}
 
 	// all feeds share one webhook, so a busy run can hit discord's per-webhook rate limit
 	if (response.status === 429 && attempt <= MAX_RETRIES) {
