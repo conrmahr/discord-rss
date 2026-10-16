@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import { get, set } from '../lib/redis/index.js';
+import { get, getFeeds, saveFeedState, set } from '../lib/redis/index.js';
 import { toMinutes, truncateString } from '../lib/helpers.js';
 import type { DiscordPost, Feed } from '../types.js';
 
@@ -13,9 +13,8 @@ export const handleFeeds = async () => {
 	}
 	console.log(`[${new Date().toISOString()}] start processing\n`);
 	await set('processing', true);
-	const subs = await get(process.env.DATABASE_NAME!); // get current subs
-
 	try {
+		const subs = await getFeeds(); // get current subs
 		// if no subs found, skip interval
 		if (!subs || !subs.length) {
 			console.log('🔴 no subs found\n');
@@ -59,7 +58,7 @@ export const handleFeeds = async () => {
 					// loop through posts
 					for (const item of items) {
 						try {
-							subs[i].updated = item.isoDate; // set updated to feed isoDate
+							subs[i].updated = item.isoDate!; // set updated to feed isoDate
 							// set post meta
 							const post: DiscordPost = {
 								name: subs[i].name,
@@ -93,13 +92,14 @@ export const handleFeeds = async () => {
 				subs[i].lastStatus = match ? Number(match[1]) : 0; // 0 = network error, timeout or bad xml
 				console.error(`🔴 error fetching ${subs[i].name}`, e);
 				continue;
+			} finally {
+				// save this feed's progress now, so ui edits to other feeds are never overwritten
+				await saveFeedState(subs[i].id, subs[i]);
 			}
 		}
 	} catch (e) {
 		console.error('🔴 error processing', e);
 	} finally {
-		// set subs with last updated values
-		await set(process.env.DATABASE_NAME!, subs);
 		await set('processing', false);
 		console.log(`[${new Date().toISOString()}] ended processing\n----\n`);
 	}

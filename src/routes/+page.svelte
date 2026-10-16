@@ -1,101 +1,46 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
-	import { truncateString } from '$lib/helpers';
+	import { cleanDiscordIds } from '$lib/helpers';
+	import EditableField from '$lib/components/EditableField.svelte';
 	import { exportOPML } from '$lib/export';
 	import type { Feed } from '../types';
 
 	// use server data directly, keep store for API calls only
 	let serverSubs = $derived(Array.isArray(page.data.get) ? page.data.get : []);
 
-	// sort by most recent post
+	// pending feeds (enabled, not checked yet, e.g. just added) first, then by most recent post;
+	// feeds without a post go last, and ties sort by name so rows don't jump between reloads
+	const isPending = (sub: Feed) => sub.status && sub.lastStatus === undefined;
+	const sortKey = (sub: Feed) => (isPending(sub) ? Infinity : Date.parse(sub.updated) || 0);
 	let sortedSubs = $derived(
-		serverSubs.sort(
-			(a: Feed, b: Feed) => new Date(b.updated).getTime() - new Date(a.updated).getTime()
+		[...serverSubs].sort(
+			(a: Feed, b: Feed) => sortKey(b) - sortKey(a) || a.name.localeCompare(b.name)
 		)
 	);
 
-	// grab sub obj from server data
-	const getSub = (id: string) => {
-		const [obj] = serverSubs.filter((sub: Feed) => sub.id === id);
-		return obj;
-	};
+	// config fields are always sent with a save; last post fields only when they're the change
+	const CONFIG_FIELDS = ['id', 'url', 'website', 'name', 'thumbnail', 'author', 'status'] as const;
 
-	const addSub = async () => {
-		// validate required fields
-		const requiredFields: (keyof Feed)[] = ['url', 'website', 'name'];
-		const missingFields = requiredFields.filter((field) => {
-			const value = newSub[field];
-			return !value || (typeof value === 'string' && value.trim() === '');
-		});
-
-		if (missingFields.length > 0) {
-			// Use browser's native form validation instead of alert
-			return false;
-		}
-
-		// combine separate date and time fields into UTC datetime
-		const subToSave = { ...newSub };
-		if (subToSave.updatedDate && subToSave.updatedTime) {
-			// Combine date and time as UTC
-			subToSave.updated = new Date(
-				`${subToSave.updatedDate}T${subToSave.updatedTime}Z`
-			).toISOString();
-		} else if (subToSave.updatedDate) {
-			// Date only, set time to 00:00:00 UTC
-			subToSave.updated = new Date(`${subToSave.updatedDate}T00:00:00Z`).toISOString();
-		} else {
-			subToSave.updated = '';
-		}
-		// Remove temporary fields
-		delete subToSave.updatedDate;
-		delete subToSave.updatedTime;
-
-		// prepare updated data
-		let updatedSubs;
-		if (subToSave.id && serverSubs.some((sub: Feed) => sub.id === subToSave.id)) {
-			// update existing subscription
-			updatedSubs = serverSubs.map((sub: Feed) => (sub.id === subToSave.id ? subToSave : sub));
-		} else {
-			// add new subscription
-			if (!subToSave.id) {
-				subToSave.id = crypto.randomUUID();
-			}
-			updatedSubs = [...serverSubs, subToSave];
-		}
-
-		// post updated data to database
-		const response = await fetch('/api', {
-			method: 'POST',
-			body: JSON.stringify(updatedSubs),
+	// save one change to a feed, then reload
+	const saveFeed = async (sub: Feed, change: Partial<Feed>) => {
+		const config = Object.fromEntries(CONFIG_FIELDS.map((field) => [field, sub[field]]));
+		const response = await fetch(`/api/feeds/${encodeURIComponent(sub.id)}`, {
+			method: 'PUT',
+			body: JSON.stringify({ ...config, ...change }),
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
-
-		if (response.ok) {
-			// reload page data to get fresh data from server
-			await invalidateAll();
+		if (!response.ok) {
+			showMessage((await response.json()).error ?? `Saving ${sub.name} failed`, true);
 		}
-
-		// reset the local object & create a new one
-		newSub = subBuilder();
-		// create new unique id
-		newSub.id = crypto.randomUUID();
+		await invalidateAll();
 	};
 
-	const deleteSub = async (id: string) => {
-		// filter out unique id from server data
-		const updatedSubs = serverSubs.filter((sub: { id: string }) => sub.id !== id);
-
-		// post updated data to database
-		const response = await fetch('/api', {
-			method: 'POST',
-			body: JSON.stringify(updatedSubs),
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		});
+	const deleteSub = async (sub: Feed) => {
+		if (!confirm(`Delete ${sub.name}?`)) return;
+		const response = await fetch(`/api/feeds/${encodeURIComponent(sub.id)}`, { method: 'DELETE' });
 
 		if (response.ok) {
 			// reload page data to get fresh data from server
@@ -103,86 +48,87 @@
 		}
 	};
 
-	const editSub = (id: string) => {
-		// get item from store and set the fill the fields
-		const currentSub = getSub(id);
-		newSub = { ...currentSub };
-		setUpdatedFields(newSub.updated);
+	let newUrl = $state('');
+	let adding = $state(false);
+	let addError = $state('');
+	let canAddAnyway = $state(false);
+
+	// back to the empty add form
+	const resetAddForm = () => {
+		newUrl = '';
+		addError = '';
+		canAddAnyway = false;
 	};
 
-	// split UTC datetime into separate date and time fields
-	const setUpdatedFields = (updated: string) => {
-		if (updated) {
-			const date = new Date(updated);
-			newSub.updatedDate = date.toISOString().slice(0, 10); // YYYY-MM-DD
-			newSub.updatedTime = date.toISOString().slice(11, 19); // HH:MM:SS
-		} else {
-			newSub.updatedDate = '';
-			newSub.updatedTime = '';
-		}
-	};
-
-	let discovering = $state(false);
-	let discoverError = $state('');
-
-	// read the feed url on the server and fill in any form fields that are still empty
-	const discoverFeed = async () => {
-		discoverError = '';
-		discovering = true;
+	const originOf = (url: string) => {
 		try {
-			const response = await fetch('/api/discover', {
-				method: 'POST',
-				body: JSON.stringify({ url: newSub.url }),
+			return new URL(url).origin;
+		} catch {
+			return url;
+		}
+	};
+
+	// add a feed from just its url: discover its details on the server, then save it enabled.
+	// the "Add" offered after a failed read skips discovery for feeds that can't be read right now
+	const addFeed = async (skipDiscovery = false) => {
+		const url = newUrl.trim();
+		addError = '';
+		canAddAnyway = false;
+		if (serverSubs.some((sub: Feed) => sub.url === url)) {
+			addError = 'That feed is already in the list';
+			return;
+		}
+
+		adding = true;
+		try {
+			let details = {
+				name: url,
+				website: originOf(url),
+				thumbnail: '',
+				updated: '',
+				lastPostedUrl: ''
+			};
+			if (!skipDiscovery) {
+				const response = await fetch('/api/discover', {
+					method: 'POST',
+					body: JSON.stringify({ url }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+				const result = await response.json();
+				if (!response.ok) {
+					addError = result.error ?? 'Discovery failed';
+					canAddAnyway = true;
+					return;
+				}
+				details = {
+					...result,
+					name: result.name || url,
+					website: result.website || details.website
+				};
+			}
+
+			const id = crypto.randomUUID();
+			const response = await fetch(`/api/feeds/${id}`, {
+				method: 'PUT',
+				body: JSON.stringify({ id, url, author: '', status: true, ...details }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
 			});
-			const result = await response.json();
 			if (!response.ok) {
-				discoverError = result.error ?? 'Discovery failed';
+				addError = (await response.json()).error ?? 'Adding the feed failed';
 				return;
 			}
-			newSub.name ||= result.name;
-			newSub.website ||= result.website;
-			newSub.thumbnail ||= result.thumbnail;
-			newSub.lastPostedUrl ||= result.lastPostedUrl;
-			if (!newSub.updatedDate && !newSub.updatedTime) {
-				setUpdatedFields(result.updated);
-			}
-			// enable new feeds; leave an existing feed's setting alone
-			if (!serverSubs.some((sub: Feed) => sub.id === newSub.id)) {
-				newSub.status = true;
-			}
+			newUrl = '';
+			await invalidateAll();
 		} catch {
-			discoverError = 'Discovery failed';
+			addError = 'Adding the feed failed';
 		} finally {
-			discovering = false;
+			adding = false;
 		}
 	};
-
-	// subscription placeholder
-	const subBuilder: () => Feed = () => ({
-		id: crypto.randomUUID(),
-		url: '',
-		website: '',
-		name: '',
-		thumbnail: '',
-		author: '',
-		status: false,
-		updated: '',
-		lastPostedUrl: ''
-	});
-
-	// clone the default subscription
-	let newSub = $state(subBuilder());
-
-	// clear form function
-	const clearForm = () => {
-		newSub = subBuilder();
-	};
-
-	// reactive validation using Svelte 5 $derived
-	let isFormValid = $derived(newSub.url && newSub.website && newSub.name);
 
 	// countdown to the next poll; the server sends ms remaining, so the deadline uses the client clock
 	let now = $state(Date.now());
@@ -204,6 +150,10 @@
 		return () => clearInterval(timer);
 	});
 
+	// show a stored ISO time as "2026-10-11 02:12:30 UTC"
+	const formatUtc = (iso: string) =>
+		iso ? new Date(iso).toISOString().slice(0, 19).replace('T', ' ') + ' UTC' : 'Not set';
+
 	// format ms as m:ss, or h:mm:ss for long intervals
 	const formatCountdown = (ms: number) => {
 		const total = Math.ceil(ms / 1000);
@@ -215,6 +165,76 @@
 			: `${minutes}:${seconds}`;
 	};
 
+	// poll interval input; resets to the saved value whenever page data reloads
+	let intervalInput = $derived(page.data.runner?.interval ?? 15);
+
+	// explains anything in the runner panel the environment controls, or how to start a paused runner
+	let runnerNote = $derived.by(() => {
+		const runner = page.data.runner;
+		if (!runner) return '';
+		const lockNotes: Record<string, string> = {
+			'no-webhook': 'Off until DISCORD_WEBHOOK_URL is set.',
+			'env-off': 'Off: RUNNER_ENABLED=false overrides Pause/Resume.',
+			'env-on': 'Always on: RUNNER_ENABLED=true overrides Pause/Resume.',
+			dev: 'Off in development. Set RUNNER_ENABLED=true to test it.'
+		};
+		const notes = [
+			runner.lock
+				? lockNotes[runner.lock]
+				: runner.running
+					? ''
+					: 'Set the interval, then Resume to start checking feeds.',
+			runner.intervalFromEnv ? 'Interval set by INTERVAL.' : ''
+		];
+		return notes.filter(Boolean).join(' ');
+	});
+	let settingsMessage = $state('');
+	let settingsError = $state(false);
+	let importInput = $state<HTMLInputElement>();
+
+	const showMessage = (message: string, isError = false) => {
+		settingsMessage = message;
+		settingsError = isError;
+	};
+
+	// save interval / pause; the server reschedules the runner straight away
+	const updateSettings = async (change: { interval?: number; paused?: boolean }) => {
+		const response = await fetch('/api/settings', {
+			method: 'PUT',
+			body: JSON.stringify({ ...page.data.settings, ...change }),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		const result = await response.json();
+		showMessage(response.ok ? '' : (result.error ?? 'Saving settings failed'), !response.ok);
+		await invalidateAll();
+	};
+
+	// merge an export file into this environment
+	const importFile = async (event: Event) => {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = ''; // allow choosing the same file again
+		if (!file) return;
+		if (!confirm(`Import feeds from ${file.name}? Feeds with the same id are replaced.`)) return;
+
+		const response = await fetch('/api/import', {
+			method: 'POST',
+			body: await file.text(),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		const result = await response.json();
+		if (response.ok) {
+			showMessage(`Imported ${result.imported} feed(s)${result.settings ? ' and settings' : ''}.`);
+			await invalidateAll();
+		} else {
+			showMessage(result.error ?? 'Import failed', true);
+		}
+	};
+
 	// export OPML file
 	const handleExportOPML = () => {
 		if (!page.data.session) return;
@@ -224,234 +244,169 @@
 
 <!-- check if user is logged -->
 {#if page.data.session}
-	<div class="mx-auto max-w-full lg:px-8">
-		<div class="pb-12">
-			<div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-				<div class="sm:col-span-2">
-					<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Feed URL</label
-					>
-					<div class="mt-2 flex gap-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.url}
-							name="url"
-							id="url"
-							placeholder="https://domain.com/feed.xml"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-						<button
-							type="button"
-							onclick={discoverFeed}
-							disabled={!newSub.url || discovering}
-							title="Fill empty fields from the feed"
-							class="shrink-0 rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {newSub.url &&
-							!discovering
-								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
-								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-							>{discovering ? 'Discovering…' : 'Discover'}</button
-						>
-					</div>
-					{#if discoverError}
-						<p class="mt-1 text-sm text-red-600">{discoverError}</p>
-					{/if}
-				</div>
+	<div>
+		<h1 class="mt-10 text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
+		<p class="mt-2 text-sm text-gray-700">
+			Every feed below is checked on a schedule, and new posts go to one Discord webhook.
+		</p>
 
-				<div class="sm:col-span-2">
-					<label for="website" class="block text-sm font-medium leading-6 text-gray-900"
-						>Website URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							required
-							bind:value={newSub.website}
-							name="website"
-							id="website"
-							placeholder="https://domain.com"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="thumbnail" class="block text-sm font-medium leading-6 text-gray-900"
-						>Thumbnail URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="text"
-							bind:value={newSub.thumbnail}
-							name="thumbnail"
-							id="thumbnail"
-							placeholder="https://domain.com/favicon.png"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-				<div class="sm:col-span-2">
-					<label for="name" class="block text-sm font-medium leading-6 text-gray-900"
-						>Feed Name</label
-					>
-					<div class="mt-2">
-						<input
-							type="text"
-							required
-							bind:value={newSub.name}
-							name="name"
-							id="name"
-							placeholder="Blog Title"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="author" class="block text-sm font-medium leading-6 text-gray-900"
-						>Author(s)</label
-					>
-					<div class="mt-2">
-						<input
-							type="text"
-							bind:value={newSub.author}
-							name="author"
-							id="author"
-							placeholder="Discord User ID(s) separated by commas (e.g. 123456789,987654321)"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="updated-date" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Post</label
-					>
-					<div class="mt-2 flex gap-2">
-						<input
-							type="date"
-							bind:value={newSub.updatedDate}
-							id="updated-date"
-							name="updated-date"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-						<input
-							type="time"
-							bind:value={newSub.updatedTime}
-							step="1"
-							id="updated-time"
-							name="updated-time"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="lastPostedUrl" class="block text-sm font-medium leading-6 text-gray-900"
-						>Last Posted URL</label
-					>
-					<div class="mt-2">
-						<input
-							type="url"
-							bind:value={newSub.lastPostedUrl}
-							name="lastPostedUrl"
-							id="lastPostedUrl"
-							placeholder="https://domain.com/post/slug"
-							class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
-						/>
-					</div>
-				</div>
-
-				<div class="sm:col-span-2">
-					<label for="active" class="block text-sm font-medium leading-6 text-gray-900"
-						>Enabled</label
-					>
-					<div class="mt-2 flex items-center gap-2">
-						<label class="relative inline-flex items-center mb-5 cursor-pointer"
-							><input type="hidden" bind:value={newSub.id} />
-							<input
-								type="checkbox"
-								bind:checked={newSub.status}
-								id="active"
-								class="sr-only peer"
-							/>
-							<div
-								class="w-11 h-6 bg-gray-100 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-300 rounded-full peer dark:bg-gray-300 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after::bg-orange-300 after:w-5 after:h-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-300"
-							></div></label
-						>
-					</div>
-				</div>
-
-				<div class="sm:col-span-6">
-					<div class="mt-2 flex items-center justify-end gap-2">
-						<button
-							type="submit"
-							onclick={addSub}
-							id="add"
-							disabled={!isFormValid}
-							class="rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {isFormValid
-								? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
-								: 'bg-gray-300 text-gray-500 cursor-not-allowed'}">Save</button
-						>
-						<button
-							type="button"
-							onclick={clearForm}
-							class="rounded-md bg-red-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-red-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-							>Clear</button
-						>
-						<button
-							type="button"
-							onclick={handleExportOPML}
-							class="rounded-md bg-gray-400 py-1.5 px-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
-							>Export</button
-						>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class="mx-auto max-w-full lg:px-8">
-		<div class="sm:flex sm:items-center">
-			<div class="sm:flex-auto">
-				<h1 class="text-base font-semibold leading-6 text-gray-900">Subscriptions</h1>
-				<p class="mt-2 text-sm text-gray-700">
-					A list of all the RSS Feed subscriptions.
-					{#if page.data.webhookId}
-						Posting to webhook
+		<!-- main controls: the runner, and moving data in and out -->
+		<section aria-label="Controls" class="mt-4 grid gap-4 md:grid-cols-2">
+			<div class="rounded-lg bg-stone-50 p-4 ring-1 ring-inset ring-gray-200">
+				<div class="flex items-center justify-between gap-2">
+					<h2 class="text-sm font-semibold text-gray-900">Runner</h2>
+					{#if !page.data.runner?.running}
 						<span
-							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
-							>{page.data.webhookId}</span
+							class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-700 ring-gray-600/20"
+							>{page.data.runner?.lock === null ? 'Paused' : 'Off'}</span
 						>
-					{:else}
+					{:else if checkingFeeds || pollRemaining === null}
 						<span
-							class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"
-							>DISCORD_WEBHOOK_URL is not set</span
-						>
-					{/if}
-					{#if pollRemaining === null}
-						<span
-							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
-							>Runner off</span
-						>
-					{:else if checkingFeeds}
-						<span
-							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
+							class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-700 ring-gray-600/20"
 							>Checking feeds…</span
 						>
 					{:else}
-						Next check in
 						<span
-							class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium tabular-nums text-gray-700 ring-1 ring-inset ring-gray-600/20"
-							>{formatCountdown(pollRemaining)}</span
+							class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-700 ring-gray-600/20 tabular-nums"
+							>Next check in {formatCountdown(pollRemaining)}</span
+						>
+					{/if}
+				</div>
+				<p class="mt-1 text-sm text-gray-600">
+					{#if page.data.webhookId}
+						Posting to webhook <span class="font-mono text-xs">{page.data.webhookId}</span>
+					{:else}
+						<span
+							class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-red-50 text-red-700 ring-red-600/20"
+							>DISCORD_WEBHOOK_URL is not set</span
 						>
 					{/if}
 				</p>
+				<div class="mt-2 flex flex-wrap items-center gap-2">
+					<label for="interval" class="text-sm text-gray-700">Check every</label>
+					<input
+						type="number"
+						id="interval"
+						min="1"
+						max="1440"
+						step="1"
+						bind:value={intervalInput}
+						onchange={() => updateSettings({ interval: intervalInput })}
+						disabled={page.data.runner?.intervalFromEnv}
+						class="w-20 rounded-md border-0 bg-white py-1.5 px-2 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-orange-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+					/>
+					<span class="text-sm text-gray-700">min</span>
+					<button
+						type="button"
+						onclick={() => updateSettings({ paused: !page.data.settings?.paused })}
+						disabled={page.data.runner?.lock != null}
+						class="ml-auto rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400 disabled:cursor-not-allowed disabled:opacity-50 {page
+							.data.settings?.paused
+							? 'bg-orange-400 text-white hover:bg-orange-300'
+							: 'bg-white text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
+						>{page.data.settings?.paused ? 'Resume' : 'Pause'}</button
+					>
+				</div>
+				{#if runnerNote}
+					<p class="mt-2 text-xs text-gray-500">{runnerNote}</p>
+				{/if}
 			</div>
-		</div>
-		<div class="mt-8 flow-root">
-			<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-				<div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-					<table class="min-w-full divide-y divide-gray-300">
-						<thead>
+
+			<div class="rounded-lg bg-stone-50 p-4 ring-1 ring-inset ring-gray-200">
+				<h2 class="text-sm font-semibold text-gray-900">Backup</h2>
+				<p class="mt-1 text-sm text-gray-600">Copy feeds and settings to another environment.</p>
+				<div class="mt-3 flex flex-wrap items-center gap-2">
+					<a
+						href="/api/export"
+						download
+						title="Download every feed, its progress and the settings as JSON"
+						class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+						>Export</a
+					>
+					<button
+						type="button"
+						onclick={() => importInput?.click()}
+						title="Add or replace feeds from an export file"
+						class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+						>Import</button
+					>
+					<button
+						type="button"
+						onclick={handleExportOPML}
+						title="Download the feed list as OPML for a feed reader"
+						class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+						>OPML</button
+					>
+					<input
+						bind:this={importInput}
+						type="file"
+						accept="application/json,.json"
+						class="hidden"
+						onchange={importFile}
+					/>
+				</div>
+			</div>
+		</section>
+		{#if settingsMessage}
+			<p role="status" class="mt-2 text-sm {settingsError ? 'text-red-600' : 'text-gray-700'}">
+				{settingsMessage}
+			</p>
+		{/if}
+		<form
+			class="mt-8"
+			onsubmit={(event) => {
+				event.preventDefault();
+				addFeed();
+			}}
+		>
+			<label for="url" class="block text-sm font-medium leading-6 text-gray-900">Add a feed</label>
+			<div class="mt-2 flex max-w-2xl gap-2">
+				<input
+					type="url"
+					required
+					bind:value={newUrl}
+					name="url"
+					id="url"
+					placeholder="https://domain.com/feed.xml"
+					class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-orange-400 sm:text-sm sm:leading-6"
+				/>
+				<button
+					type="submit"
+					disabled={!newUrl.trim() || adding}
+					title="Read the feed and add it to the list"
+					class="shrink-0 rounded-md py-1.5 px-3 text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 {newUrl.trim() &&
+					!adding
+						? 'bg-orange-400 text-white hover:bg-orange-300 focus-visible:outline-orange-400'
+						: 'bg-gray-300 text-gray-500 cursor-not-allowed'}">{adding ? 'Adding…' : 'Add'}</button
+				>
+			</div>
+			{#if addError}
+				<p class="mt-1 text-sm text-red-600">
+					{addError}
+					{#if canAddAnyway}
+						<button
+							type="button"
+							onclick={() => addFeed(true)}
+							title="Add the feed without reading its details"
+							class="ml-1 text-orange-500 hover:text-orange-600">Add</button
+						>
+						<span class="text-gray-300" aria-hidden="true">|</span>
+						<button type="button" onclick={resetAddForm} class="text-gray-500 hover:text-gray-700"
+							>Cancel</button
+						>
+					{/if}
+				</p>
+			{/if}
+			<p class="mt-1 text-sm text-gray-500">
+				The name, website, thumbnail and last post are filled in from the feed. Click any value in
+				the table to change it.
+			</p>
+		</form>
+		<div class="mt-6 flow-root">
+			<div class="overflow-x-auto">
+				<div class="min-w-full align-middle xl:inline-block">
+					<table class="block min-w-full xl:table xl:divide-y xl:divide-gray-300">
+						<thead class="hidden xl:table-header-group">
 							<tr>
 								<th
 									scope="col"
@@ -472,53 +427,122 @@
 								<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
 									>Last Updated</th
 								>
-								<th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-0">
-									<span class="sr-only">Edit</span>
-								</th>
+								<th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+									>Enabled</th
+								>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-gray-200 bg-white">
+						<tbody class="block divide-y divide-gray-200 bg-white xl:table-row-group">
 							<!-- iterate out each sub -->
-							{#each sortedSubs as sub, index (sub)}
-								<tr>
-									<td class="whitespace-nowrap px-3 py-5 text-left text-sm text-gray-500">
-										<span>{index + 1}</span>
-									</td>
-									<td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm sm:pl-0">
+							{#each sortedSubs as sub, index (sub.id)}
+								<tr class="relative block py-4 xl:table-row xl:py-0">
+									<td
+										class="hidden whitespace-nowrap px-3 py-5 text-left text-sm text-gray-500 xl:table-cell"
+										><span>{index + 1}</span></td
+									>
+									<td
+										class="block pr-24 text-sm break-all xl:table-cell xl:whitespace-nowrap xl:break-normal xl:py-5 xl:pl-0 xl:pr-3"
+									>
 										<div class="flex items-center">
-											<div class="h-11 w-11 shrink-0">
-												<img
-													class="h-11 w-11 rounded-full"
-													src={sub.thumbnail?.startsWith('http') ? sub.thumbnail : '/feed-icon.svg'}
-													alt=""
-												/>
+											<div class="relative h-11 w-11 shrink-0">
+												<EditableField
+													value={sub.thumbnail}
+													label="Thumbnail URL"
+													floating
+													type="url"
+													placeholder="https://domain.com/favicon.png"
+													onsave={(thumbnail) => saveFeed(sub, { thumbnail })}
+												>
+													<img
+														class="h-11 w-11 max-w-none rounded-full"
+														src={sub.thumbnail?.startsWith('http')
+															? sub.thumbnail
+															: '/feed-icon.svg'}
+														alt="Edit thumbnail for {sub.name}"
+													/>
+												</EditableField>
 											</div>
-											<div class="ml-4">
+											<div class="ml-4 min-w-0 flex-1 xl:flex-none xl:shrink-0">
 												<div class="font-medium text-gray-900">
-													<a href={sub.website} title={sub.name} target="_blank">{sub.name}</a>
+													<EditableField
+														value={sub.name}
+														label="Name"
+														required
+														onsave={(name) => saveFeed(sub, { name })}
+													>
+														<span class="block max-w-64 truncate" title={sub.name}>{sub.name}</span>
+													</EditableField>
 												</div>
-												<div class="mt-1 text-gray-500">{sub.author ?? ''}</div>
+												<div class="mt-1 flex items-center gap-1 text-gray-500">
+													<EditableField
+														value={sub.website}
+														label="Website"
+														type="url"
+														required
+														onsave={(website) => saveFeed(sub, { website })}
+														><span class="block max-w-64 truncate" title={sub.website}
+															>{sub.website}</span
+														></EditableField
+													>
+													<a
+														href={sub.website}
+														target="_blank"
+														title="Open website"
+														class="text-gray-400 hover:text-orange-500">↗</a
+													>
+												</div>
+												<div class="mt-1 text-gray-500">
+													<EditableField
+														value={sub.author}
+														label="Author"
+														placeholder="Add Discord user IDs"
+														onsave={(author) => saveFeed(sub, { author: cleanDiscordIds(author) })}
+													/>
+												</div>
 											</div>
 										</div>
 									</td>
-									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
-										<div class="text-gray-900">
-											<a href={sub.url} title={sub.name} target="_blank"
-												>{truncateString(sub.url, 40)}</a
+									<td
+										class="block pt-3 text-sm text-gray-900 break-all xl:table-cell xl:whitespace-nowrap xl:break-normal xl:px-3 xl:py-5"
+									>
+										<span class="block text-xs font-medium text-gray-500 xl:hidden">Feed</span>
+										<div class="flex items-center gap-1">
+											<EditableField
+												value={sub.url}
+												label="Feed URL"
+												type="url"
+												required
+												onsave={(url) => saveFeed(sub, { url })}
+												><span class="block max-w-64 truncate" title={sub.url}>{sub.url}</span
+												></EditableField
+											>
+											<a
+												href={sub.url}
+												target="_blank"
+												title="Open feed"
+												class="text-gray-400 hover:text-orange-500">↗</a
 											>
 										</div>
 									</td>
-									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
-										<span
-											class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {sub.status
-												? `bg-orange-50 text-orange-700 ring-orange-600/20`
-												: `bg-gray-50 text-gray-600 ring-gray-500/20`}"
-											>{sub.status ? 'Enabled' : 'Disabled'}</span
-										>
-										{#if sub.status && sub.lastStatus !== undefined}
+									<td
+										class="block pt-3 text-sm text-gray-500 xl:table-cell xl:whitespace-nowrap xl:px-3 xl:py-5"
+									>
+										<span class="block text-xs font-medium text-gray-500 xl:hidden">Status</span>
+										{#if !sub.status}
+											<span
+												class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/20"
+												>Disabled</span
+											>
+										{:else if sub.lastStatus === undefined}
+											<span
+												title="Not checked yet"
+												class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/20"
+												>Pending</span
+											>
+										{:else}
 											<span
 												title="HTTP status from the last feed check"
-												class="ml-1 inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {sub.lastStatus ===
+												class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {sub.lastStatus ===
 												200
 													? `bg-green-50 text-green-700 ring-green-600/20`
 													: `bg-red-50 text-red-700 ring-red-600/20`}"
@@ -526,40 +550,71 @@
 											>
 										{/if}
 									</td>
-									<td class="whitespace-nowrap px-3 py-5 text-sm text-gray-500">
-										<div class="text-gray-900">
+									<td
+										class="block pt-3 text-sm text-gray-500 break-all xl:table-cell xl:whitespace-nowrap xl:break-normal xl:px-3 xl:py-5"
+									>
+										<span class="block text-xs font-medium text-gray-500 xl:hidden">Last post</span>
+										<div class="flex items-center gap-1 text-gray-900">
+											<EditableField
+												value={sub.lastPostedUrl ?? ''}
+												label="Last posted URL"
+												type="url"
+												placeholder="Pending"
+												onsave={(lastPostedUrl) => saveFeed(sub, { lastPostedUrl })}
+											>
+												{#if sub.lastPostedUrl}<span
+														class="block max-w-64 truncate"
+														title={sub.lastPostedUrl}>{sub.lastPostedUrl}</span
+													>{:else}<span class="text-gray-400">Pending</span>{/if}
+											</EditableField>
 											{#if sub.lastPostedUrl}
-												<a href={sub.lastPostedUrl} title={sub.lastPostedUrl} target="_blank"
-													>{truncateString(sub.lastPostedUrl, 40)}</a
+												<a
+													href={sub.lastPostedUrl}
+													target="_blank"
+													title="Open last post"
+													class="text-gray-400 hover:text-orange-500">↗</a
 												>
-											{:else}
-												<span>Pending</span>
 											{/if}
 										</div>
-										{#if sub.updated}
-											<div class="mt-1 text-gray-500">
+										<div class="mt-1">
+											<EditableField
+												value={sub.updated}
+												label="Last post time (UTC)"
+												type="datetime"
+												onsave={(updated) => saveFeed(sub, { updated })}
+											>
 												<span
 													class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/20"
-													>{sub.updated}</span
+													>{formatUtc(sub.updated)}</span
 												>
-											</div>
-										{/if}
+											</EditableField>
+										</div>
 									</td>
 									<td
-										class="relative whitespace-nowrap py-5 pl-3 pr-4 text-right text-sm font-medium sm:pr-0"
+										class="absolute right-0 top-4 text-sm text-gray-500 xl:static xl:table-cell xl:whitespace-nowrap xl:px-3 xl:py-5"
 									>
-										<button
-											type="submit"
-											onclick={() => editSub(sub.id)}
-											class="text-orange-400 hover:text-orange-600"
-											>Edit<span class="sr-only">, {sub.name}</span></button
-										>
-										<button
-											type="submit"
-											onclick={() => deleteSub(sub.id)}
-											class="text-orange-400 hover:text-orange-600"
-											>Delete<span class="sr-only">, {sub.name}</span></button
-										>
+										<div class="flex items-center gap-3">
+											<label class="relative inline-flex cursor-pointer items-center">
+												<input
+													type="checkbox"
+													checked={sub.status}
+													onchange={() => saveFeed(sub, { status: !sub.status })}
+													aria-label="Enable {sub.name}"
+													class="peer sr-only"
+												/>
+												<div
+													class="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-orange-300 peer-focus-visible:ring-4 peer-focus-visible:ring-orange-300 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+												></div>
+											</label>
+											<button
+												type="button"
+												onclick={() => deleteSub(sub)}
+												title="Delete"
+												aria-label="Delete {sub.name}"
+												class="rounded px-1 text-lg leading-none text-gray-400 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400"
+												>✕</button
+											>
+										</div>
 									</td>
 								</tr>
 							{/each}
@@ -571,7 +626,7 @@
 	</div>
 {:else}
 	<!-- user not logged in -->
-	<div class="mx-auto max-w-md sm:max-w-7xl lg:px-8">
+	<div class="mt-10">
 		<div class="bg-white shadow sm:rounded-lg">
 			<div class="px-4 py-5 sm:p-6">
 				<h3 class="text-base font-semibold leading-6 text-gray-900">Please login</h3>

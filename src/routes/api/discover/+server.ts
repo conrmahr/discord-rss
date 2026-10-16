@@ -1,18 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { isAuthorized } from '$lib/server/authorized';
+import { requireAuthorized } from '$lib/server/authorized';
 import { discover } from '$lib/server/discover';
 
 // read a feed url and suggest values for the subscription form
 export const POST = async ({ request, locals }) => {
-	const session = await locals.auth();
-
-	if (!session?.user?.id) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
-	if (!isAuthorized(session.user.id)) {
-		return json({ error: 'Forbidden' }, { status: 403 });
-	}
+	const denied = await requireAuthorized(locals);
+	if (denied) return denied;
 
 	const { url } = await request.json();
 
