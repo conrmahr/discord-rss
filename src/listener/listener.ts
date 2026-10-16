@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import { get, set } from '../lib/redis/index.js';
+import { get, getFeeds, saveFeedState, set } from '../lib/redis/index.js';
 import { toMinutes, truncateString } from '../lib/helpers.js';
 import type { DiscordPost, Feed } from '../types.js';
 
@@ -13,9 +13,8 @@ export const handleFeeds = async () => {
 	}
 	console.log(`[${new Date().toISOString()}] start processing\n`);
 	await set('processing', true);
-	const subs = await get(process.env.DATABASE_NAME!); // get current subs
-
 	try {
+		const subs = await getFeeds(); // get current subs
 		// if no subs found, skip interval
 		if (!subs || !subs.length) {
 			console.log('🔴 no subs found\n');
@@ -32,6 +31,7 @@ export const handleFeeds = async () => {
 
 			try {
 				const feed = await parser.parseURL(subs[i].url); // fetch feed url
+				subs[i].lastStatus = 200; // parseURL only resolves on a status below 300
 				feed.items.sort((a, b) => new Date(a.isoDate!).getTime() - new Date(b.isoDate!).getTime()); // sort oldest post to newest
 
 				// if updated is blank, set it to last feed and skip
@@ -58,7 +58,7 @@ export const handleFeeds = async () => {
 					// loop through posts
 					for (const item of items) {
 						try {
-							subs[i].updated = item.isoDate; // set updated to feed isoDate
+							subs[i].updated = item.isoDate!; // set updated to feed isoDate
 							// set post meta
 							const post: DiscordPost = {
 								name: subs[i].name,
@@ -87,33 +87,68 @@ export const handleFeeds = async () => {
 					subs[i].lastPostedUrl = items[items.length - 1].link;
 				}
 			} catch (e) {
+				// rss-parser rejects non-2xx responses with "Status code <n>"
+				const match = /^Status code (\d+)$/.exec((e as Error).message);
+				subs[i].lastStatus = match ? Number(match[1]) : 0; // 0 = network error, timeout or bad xml
 				console.error(`🔴 error fetching ${subs[i].name}`, e);
 				continue;
+			} finally {
+				// save this feed's progress now, so ui edits to other feeds are never overwritten
+				await saveFeedState(subs[i].id, subs[i]);
 			}
 		}
 	} catch (e) {
 		console.error('🔴 error processing', e);
 	} finally {
-		// set subs with last updated values
-		await set(process.env.DATABASE_NAME!, subs);
 		await set('processing', false);
 		console.log(`[${new Date().toISOString()}] ended processing\n----\n`);
 	}
 };
 
-const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
-	// post to discord api
-	const response = async (url = '', data = {}) => {
-		const response = await fetch(url, {
+const MAX_RETRIES = 3;
+
+// fetch errors can include the url (e.g. "Failed to parse URL from …" for a malformed
+// DISCORD_WEBHOOK_URL); replace it so the webhook token never reaches the logs
+const withoutWebhookUrl = (error: unknown) => {
+	const url = process.env.DISCORD_WEBHOOK_URL;
+	const text = (e: unknown) => (e instanceof Error ? e.message : String(e));
+	const cause = error instanceof Error && error.cause ? ` (${text(error.cause)})` : '';
+	const message = text(error) + cause; // e.g. "fetch failed (getaddrinfo ENOTFOUND …)"
+	return new Error(url ? message.replaceAll(url, '<DISCORD_WEBHOOK_URL>') : message);
+};
+
+// post to discord webhook, waiting and retrying when rate limited
+const postToWebhook = async (data = {}, attempt = 1): Promise<{ content?: string }> => {
+	let response: Response;
+	try {
+		response = await fetch(`${process.env.DISCORD_WEBHOOK_URL}?wait=true`, {
 			method: 'POST',
 			headers: {
 				'Content-type': 'application/json;'
 			},
 			body: JSON.stringify(data)
 		});
+	} catch (error) {
+		throw withoutWebhookUrl(error);
+	}
 
-		return response.json();
-	};
+	// all feeds share one webhook, so a busy run can hit discord's per-webhook rate limit
+	if (response.status === 429 && attempt <= MAX_RETRIES) {
+		const { retry_after } = await response.json(); // seconds
+		const wait = Math.ceil((retry_after ?? 1) * 1000);
+		console.log(`	⏳ rate limited, retrying in ${wait}ms (attempt ${attempt}/${MAX_RETRIES})\n`);
+		await new Promise((resolve) => setTimeout(resolve, wait));
+		return postToWebhook(data, attempt + 1);
+	}
+
+	if (!response.ok) {
+		throw new Error(`webhook responded ${response.status}: ${await response.text()}`);
+	}
+
+	return response.json();
+};
+
+const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 	// loop through post meta and format for webhook
 	for (const post of posts) {
 		const feedText = feed.name ? `### ${feed.name}\n` : '';
@@ -135,7 +170,7 @@ const executeHook = async (feed: Feed, posts: DiscordPost[]) => {
 		const linkText = `\n${post.url}`;
 		const content = feedText + titleText + authorText + linkText;
 
-		await response(`${feed.webhook}?wait=true`, { content: content })
+		await postToWebhook({ content: content })
 			.then((json) => {
 				console.log(`📬 successfully posted:\n ${json.content}\n`); // handle success
 			})
