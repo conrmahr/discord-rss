@@ -1,6 +1,6 @@
 {
 	"name": "discord-rss",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Lightweight, easy-to-use RSS feed => Discord webhook service",
 	"scripts": {
 		"sync": "svelte-kit sync",
