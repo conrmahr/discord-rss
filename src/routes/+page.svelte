@@ -168,23 +168,23 @@
 	// poll interval input; resets to the saved value whenever page data reloads
 	let intervalInput = $derived(page.data.runner?.interval ?? 15);
 
-	// explains anything in the runner panel the environment controls, or how to start a paused runner
+	// one line saying what .env overrides, or how to start a paused runner
 	let runnerNote = $derived.by(() => {
 		const runner = page.data.runner;
 		if (!runner) return '';
-		const lockNotes: Record<string, string> = {
-			'no-webhook': 'Off until DISCORD_WEBHOOK_URL is set.',
-			'env-off': 'Off: RUNNER_ENABLED=false overrides Pause/Resume.',
-			'env-on': 'Always on: RUNNER_ENABLED=true overrides Pause/Resume.',
-			dev: 'Off in development. Set RUNNER_ENABLED=true to test it.'
-		};
+		const overrides = [
+			runner.lock === 'env-on' ? 'RUNNER_ENABLED=true' : '',
+			runner.lock === 'env-off' ? 'RUNNER_ENABLED=false' : '',
+			runner.intervalFromEnv ? `INTERVAL=${runner.interval}` : ''
+		].filter(Boolean);
 		const notes = [
-			runner.lock
-				? lockNotes[runner.lock]
-				: runner.running
-					? ''
-					: 'Set the interval, then Resume to start checking feeds.',
-			runner.intervalFromEnv ? 'Interval set by INTERVAL.' : ''
+			runner.lock === 'no-webhook' ? 'Off until DISCORD_WEBHOOK_URL is set in .env.' : '',
+			overrides.length ? `Overridden in .env: ${overrides.join(', ')}.` : '',
+			!runner.lock && !runner.running
+				? runner.intervalFromEnv
+					? 'Resume to start checking feeds.'
+					: 'Set the interval, then Resume to start checking feeds.'
+				: ''
 		];
 		return notes.filter(Boolean).join(' ');
 	});
