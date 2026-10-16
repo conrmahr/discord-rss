@@ -1,6 +1,6 @@
 {
 	"name": "discord-rss",
-	"version": "1.6.1",
+	"version": "2.0.0",
 	"description": "Lightweight, easy-to-use RSS feed => Discord webhook service",
 	"scripts": {
 		"sync": "svelte-kit sync",
@@ -11,9 +11,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
-		"format": "prettier --write .",
-		"build:runner": "tsc --module es2022 --target es2022 --moduleResolution node --allowSyntheticDefaultImports true --outDir runner src/runner.ts",
-		"runner": "node -r dotenv/config runner/runner.js"
+		"format": "prettier --write ."
 	},
 	"keywords": [
 		"discord",

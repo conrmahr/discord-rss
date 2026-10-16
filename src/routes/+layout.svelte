@@ -8,58 +8,55 @@
 	let { children }: Props = $props();
 </script>
 
-<div class="mx-auto max-w-full lg:px-88">
-	<header class="relative">
-		<div class="bg-stone-50">
-			<nav class="mx-auto flex max-w-full justify-between p-6 lg:px-8" aria-label="Global">
-				<div class="flex lg:flex-1">
-					<a href="/" class="-m-1.5 p-1.5" data-sveltekit-reload>
-						<span class="sr-only">Discord RSS Feed Manager</span>
-						<img class="h-12 mt-4" src="logo.png" alt="Discord RSS Feed Manager" />
+<div class="flex min-h-screen flex-col">
+	<header class="bg-stone-50">
+		<nav
+			class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 xl:px-0"
+			aria-label="Global"
+		>
+			<a href="/" class="-m-1.5 shrink-0 p-1.5" data-sveltekit-reload>
+				<span class="sr-only">Discord RSS Feed Manager</span>
+				<img class="h-10 sm:h-12" src="/logo.png" alt="Discord RSS Feed Manager" />
+			</a>
+			<div class="flex min-w-0 items-center gap-3 sm:gap-4">
+				{#if page.data.session}
+					<img
+						class="h-10 w-10 shrink-0 rounded-full sm:h-12 sm:w-12"
+						src={page.data.session.user?.image}
+						alt=""
+					/>
+					<div class="hidden min-w-0 sm:block">
+						<h3 class="truncate text-base font-semibold leading-6 text-gray-900">
+							{page.data.session.user?.name}
+						</h3>
+						<p class="truncate text-sm text-gray-500">
+							{page.data.session.user?.email}
+						</p>
+					</div>
+					<a
+						href="/auth/signout"
+						class="inline-flex shrink-0 items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+					>
+						Log out
 					</a>
-				</div>
-				<div class="-hidden lg:flex lg:flex-1 lg:justify-end">
-					<div class="ml-4 mt-4">
-						<div class="flex items-center">
-							{#if page.data.session}
-								<div class="shrink-0">
-									<img class="h-12 w-12 rounded-full" src={page.data.session.user?.image} alt="" />
-								</div>
-								<div class="ml-4">
-									<h3 class="text-base font-semibold leading-6 text-gray-900">
-										{page.data.session.user?.name}
-									</h3>
-									<p class="text-sm text-gray-500">
-										{page.data.session.user?.email}
-									</p>
-								</div>
-							{/if}
-						</div>
-					</div>
-					<div class="ml-4 mt-4 flex shrink-0">
-						{#if page.data.session}
-							<a
-								href="/auth/signout"
-								class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-							>
-								Log out
-							</a>
-						{:else}
-							<a
-								href="/auth/signin"
-								class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-							>
-								Log in
-							</a>
-						{/if}
-					</div>
-				</div>
-			</nav>
-		</div>
+				{:else}
+					<a
+						href="/auth/signin"
+						class="inline-flex shrink-0 items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+					>
+						Log in
+					</a>
+				{/if}
+			</div>
+		</nav>
 	</header>
-	{@render children?.()}
+	<main class="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 xl:px-0">
+		{@render children?.()}
+	</main>
 	<footer class="bg-white">
-		<div class="mx-auto px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
+		<div
+			class="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:flex md:items-center md:justify-between xl:px-0"
+		>
 			<div class="flex justify-center space-x-6 md:order-2">
 				<a href="https://github.com/conrmahr/discord-rss" class="text-gray-400 hover:text-gray-500">
 					<span class="sr-only">GitHub</span>
